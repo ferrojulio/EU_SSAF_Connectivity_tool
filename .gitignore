@@ -1,0 +1,5 @@
+*.sqlite
+*.rds
+event_log.txt
+.Rproj.user
+*.png
