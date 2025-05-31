@@ -1,13 +1,14 @@
 # app_Farmers.R — Multilingual ####
 # 
 
+
 library(shiny)
 library(leaflet)
 library(dplyr)
 library(DBI)
 library(RSQLite)
 library(htmltools)
-
+library(RPostgres)
 
 
 translations <- readRDS("/srv/shiny-server/farmers/Farmers_translations.rds")
@@ -17,6 +18,10 @@ translations <- translations[!is.na(translations$unique_ID), ]
 
 
 source( "/srv/shiny-server/utils.R")
+
+t <- function(key, lang = "French") {
+	t_original(key, lang, translations_df = translations)
+}
 
 checkTranslationKeys(used_translation_keys, translations)
 
@@ -41,176 +46,142 @@ dbname <- Sys.getenv("PGDATABASE")
 csv_collapse <- function(x) if (is.null(x)) "" else paste(x, collapse = ";")
 
 # Create table if missing
-
+mode <- "online"
 
 # SaveData0: raw multilingual inputs
 saveRawInputs <- function(data, table = dbtable) {
-  conn <- if (mode == "online") {
-    DBI::dbConnect(RPostgres::Postgres(),
-                   host = host, port = port,
-                   user = user, password = password,
-                   dbname = dbname)
-
-  
-  
-  if (!dbExistsTable(conn, dbtable)) {
-    
-    
-    dbExecute(conn, paste0(
-      "CREATE TABLE ", dbtable, " (
-    session_token TEXT PRIMARY KEY,
-    timestamp TEXT,
-    timestamp_map TEXT,
-    language TEXT,
-    country TEXT,
-    region2 TEXT,
-    lat REAL,
-    lon REAL,
-    Soil_Type_Description TEXT,
-    number_soil_types TEXT,
-    role TEXT,
-    farm_enterprises TEXT,
-    perceived_threats TEXT,
-    supply_newconcepts TEXT,
-    supply_approach TEXT,
-    supply_opinion TEXT,
-    food_newconcepts TEXT,
-    food_approach TEXT,
-    food_opinion TEXT,
-    econ_newconcepts TEXT,
-    econ_approach TEXT,
-    econ_opinion TEXT,
-    econ_validation_opinion TEXT,
-    intSec_newconcepts TEXT,
-    intSec_approach TEXT,
-    intSec_opinion TEXT,
-    intSec_validation TEXT,
-    intSec_validation_comment TEXT,
-    defense_newconcepts TEXT,
-    defense_approach TEXT,
-    defense_opinion TEXT,
-    defense_validation TEXT,
-    defense_validation_comment TEXT,
-    E_K TEXT,
-    E_approach TEXT,
-    E_opinion TEXT,
-    E_legislation TEXT,
-    A_K TEXT,
-    A_approach TEXT,
-    A_opinion TEXT,
-    A_pH TEXT,
-    S_K TEXT,
-    S_approach TEXT,
-    S_opinion TEXT,
-    S_type TEXT,
-    HL_K TEXT,
-    HL_approach TEXT,
-    HL_opinion TEXT,
-    HL_val1 TEXT,
-    HL_val2 TEXT,
-    NM_K TEXT,
-    NM_approach TEXT,
-    NM_opinion TEXT,
-    NM_forms TEXT,
-    NM_system TEXT,
-    SW_K TEXT,
-    SW_approach TEXT,
-    SW_opinion TEXT,
-    SW_probleme TEXT,
-    DC_K TEXT,
-    DC_approach TEXT,
-    DC_opinion TEXT,
-    DC_practices TEXT,
-    DC_carbon_credits TEXT,
-    Threat_Val_E TEXT,
-    Threat_Val_E_comment TEXT,
-    Threat_Val_A TEXT,
-    Threat_Val_A_comment TEXT,
-    Age TEXT,
-    education_level TEXT,
-    Land_ownership TEXT,
-    Land_area REAL
-  )"
-    ))
-    
-  }
-  
-  # Sanitize text fields for UTF-8 and escape single quotes
-  data[] <- lapply(data, function(x) {
-    if (is.character(x)) iconv(gsub("'", "''", x), from = "", to = "UTF-8") else x
-  })
-  
-  tryCatch({
-    dbWriteTable(conn, table, data, append = TRUE, row.names = FALSE)
+  # Establish DB connection
+  conn <- tryCatch({
+    if (mode == "online") {
+      DBI::dbConnect(RPostgres::Postgres(),
+                     host = host, port = port,
+                     user = user, password = password,
+                     dbname = dbname,
+                     options = "-c search_path=public")
+    } else {
+      DBI::dbConnect(RSQLite::SQLite(), "TestDatabase.sqlite")
+    }
   }, error = function(e) {
+    message("❌ DB connection failed: ", e$message)
+    return(NULL)
+  })
+
+  if (is.null(conn)) return(NULL)
+  on.exit(DBI::dbDisconnect(conn))
+
+  # Sanitize text values
+  data[] <- lapply(data, function(x) {
+    if (is.character(x)) {
+      x <- iconv(x, from = "", to = "UTF-8")
+      x <- gsub("'", "''", x)
+    }
+    x
+  })
+
+  # Build INSERT query
+  fields <- names(data)
+  values <- sapply(data[1, ], function(x) {
+    if (is.character(x)) paste0("'", x, "'") else as.character(x)
+  })
+
+  query <- sprintf("INSERT INTO %s (%s) VALUES (%s)",
+                   table,
+                   paste(fields, collapse = ", "),
+                   paste(values, collapse = ", "))
+
+  tryCatch({
+    DBI::dbExecute(conn, query)
+  }, error = function(e) {
+    cat(Sys.time(), "\nQuery failed:\n", query, "\nError:\n", e$message, "\n\n",
+        file = "/srv/shiny-server/farmers/event_log.txt", append = TRUE)
     showNotification(paste("DB write error:", e$message), type = "error")
   })
-  
-  on.exit(DBI::dbDisconnect(conn)) 
-  
-  }  } 
+}
 
 
   
 # SaveData1: simplified numerical scoring for downstream analysis
-saveScoringData <- function(data, table = dbtable){
-  
-  conn <- if (mode == "online") {
-    DBI::dbConnect(RPostgres::Postgres(),
-                   host = host, port = port,
-                   user = user, password = password,
-                   dbname = dbname)
-
-  
+saveScoringData <- function(data, table = dbtable) {
   if (nrow(data) == 0 || !"session_token" %in% names(data)) return(NULL)
-  
-  
-  # UTF-8 sanitisation and SQL escaping
+
+  conn <- tryCatch({
+    if (mode == "online") {
+      DBI::dbConnect(RPostgres::Postgres(),
+                     host = host, port = port,
+                     user = user, password = password,
+                     dbname = dbname,
+                     options = "-c search_path=public")
+    } else {
+      DBI::dbConnect(RSQLite::SQLite(), "TestDatabase.sqlite")
+    }
+  }, error = function(e) {
+    message("❌ DB connection failed: ", e$message)
+    return(NULL)
+  })
+
+  if (is.null(conn)) return(NULL)
+  on.exit(DBI::dbDisconnect(conn))
+
+  # Sanitize inputs
   data[] <- lapply(data, function(x) {
     if (is.character(x)) {
       x <- iconv(x, from = "", to = "UTF-8")
-      x <- gsub("'", "''", x)  # escape single quotes
-    }
-    x
+      gsub("'", "''", x)
+    } else x
   })
-  
+
   token <- data$session_token[1]
   fields <- setdiff(names(data), "session_token")
-  
-  if (length(fields) > 0) {
-    updates <- paste0(fields, " = '", unlist(data[1, fields]), "'", collapse = ", ")
-    query <- sprintf("UPDATE %s SET %s WHERE session_token = '%s'", table, updates, token)
+  if (length(fields) == 0) return(NULL)
+
+  updates <- paste0(fields, " = '", unlist(data[1, fields]), "'", collapse = ", ")
+  query <- sprintf("UPDATE %s SET %s WHERE session_token = '%s'", table, updates, token)
+
+  tryCatch({
     DBI::dbExecute(conn, query)
-  }
-  on.exit(DBI::dbDisconnect(conn)) 
-  } 
+  }, error = function(e) {
+    cat(Sys.time(), "\nQuery failed:\n", query, "\nError:\n", e$message, "\n\n",
+        file = "/srv/shiny-server/farmers/event_log.txt", append = TRUE)
+    showNotification(paste("DB write error:", e$message), type = "error")
+  })
 }
 
-readResults <- function( session_token, table = dbtable) {
-  
-  conn <- if (mode == "online") {
-    DBI::dbConnect(RPostgres::Postgres(),
-                   host = host, port = port,
-                   user = user, password = password,
-                   dbname = dbname)
-   
-  
- 
-  
+
+
+readResults <- function(session_token, table = dbtable) {
   if (is.null(session_token) || session_token == "") return(NULL)
-  
+
+  conn <- tryCatch({
+    if (mode == "online") {
+      DBI::dbConnect(RPostgres::Postgres(),
+                     host = host, port = port,
+                     user = user, password = password,
+                     dbname = dbname)
+    } else {
+      DBI::dbConnect(RSQLite::SQLite(), "TestDatabase.sqlite")
+    }
+  }, error = function(e) {
+    message("❌ DB connection failed: ", e$message)
+    return(NULL)
+  })
+
+  if (is.null(conn)) return(NULL)
+  on.exit(DBI::dbDisconnect(conn))
 
   query <- sprintf("SELECT * FROM %s WHERE session_token = '%s'", table, session_token)
-  result <- DBI::dbGetQuery(conn, query)
 
-  # Decode any UTF-8 text to ensure proper display
+  result <- tryCatch({
+    DBI::dbGetQuery(conn, query)
+  }, error = function(e) {
+    message("❌ DB read error: ", e$message)
+    return(NULL)
+  })
+
   result[] <- lapply(result, function(x) {
     if (is.character(x)) iconv(x, from = "", to = "UTF-8") else x
   })
-  
+
   return(result)
-  on.exit(DBI::dbDisconnect(conn)) 
-}
 }
 
 

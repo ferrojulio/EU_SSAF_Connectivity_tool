@@ -19,7 +19,7 @@ commune_centroids[] <- lapply(commune_centroids, function(x) {
 
 #Translations ####
 
-t <- function(key, lang = "French", translations_df = NULL) {
+t_original <- function(key, lang = "French", translations_df = NULL) {
   if (is.null(translations_df)) return(paste0("[[", key, "]]"))
 
   lang <- if (lang %in% colnames(translations_df)) lang else "English"
