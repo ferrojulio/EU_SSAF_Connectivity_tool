@@ -1,4 +1,4 @@
-# app_Farmers.R — Multilingual ####
+# app_policymakers.R — Multilingual ####
 # 
 
 
@@ -9,16 +9,41 @@ library(DBI)
 library(RSQLite)
 library(htmltools)
 library(RPostgres)
+library(readxl)
 
 
-translations <<- readRDS("/srv/shiny-server/farmers/Farmers_translations.rds")
+translations <<- read_excel("/srv/shiny-server/policymakers/Policymakers_translations_new.xlsx")
+
+# Workaround for swapped French and English translations
+if ("French" %in% colnames(translations) && "English" %in% colnames(translations)) {
+  # Heuristic: Check a known key to see if the languages are swapped
+  # Assuming "dont_know" is a reliable key for this check
+  if (translations[translations$unique_ID == "dont_know", "French"] == "Don't know" &&
+      translations[translations$unique_ID == "dont_know", "English"] == "Je ne sais pas") {
+    
+    message("Detected swapped French and English translations. Swapping columns back.")
+    
+    # Temporarily store one column
+    temp_col <- translations$French
+    # Assign English to French
+    translations$French <- translations$English
+    # Assign temp (original French) to English
+    translations$English <- temp_col
+  }
+}
 
 translations <- translations[!is.na(translations$unique_ID), ]
 
 source("/srv/shiny-server/utils.R",local = TRUE)  
 
+# Load shared objects
+source("/srv/shiny-server/global.R", local = FALSE)
 
-source("/srv/shiny-server/farmers/farmersScoring.R", local = TRUE)
+# If global failed, fallback to local readRDS
+
+
+
+source("/srv/shiny-server/policymakers/PolicymakersScoring.R", local = TRUE)
 
 t <- function(key, lang = "French") {
   t_original(key, lang)
@@ -39,17 +64,33 @@ checkTranslationKeys(used_translation_keys, translations)
 # 
 
 
-dbtable <- "farmer_responses"
+
+ensure_columns_exist <- function(conn, table, data) {
+  existing_cols <- DBI::dbListFields(conn, table)
+  new_cols <- setdiff(names(data), existing_cols)
+  for (col in new_cols) {
+    # Infer type: numeric → DOUBLE PRECISION, else TEXT
+    type <- if (is.numeric(data[[col]])) "DOUBLE PRECISION" else "TEXT"
+    alter_sql <- sprintf(
+      "ALTER TABLE %s ADD COLUMN %s %s",
+      DBI::dbQuoteIdentifier(conn, table),
+      DBI::dbQuoteIdentifier(conn, col),
+      type
+    )
+    DBI::dbExecute(conn, alter_sql)
+    message("➕ Added column ", col, " (", type, ")")
+  }
+}
 
 
+
+dbtable <- "policymakers_responses"
 
 host <- Sys.getenv("PGHOST")
 port <- Sys.getenv("PGPORT")
 user <- Sys.getenv("PGUSER")
 password <- Sys.getenv("PGPASSWORD")
 dbname <- Sys.getenv("PGDATABASE")
-
-
 
 
 
@@ -75,8 +116,15 @@ saveRawInputs <- function(data, table = dbtable) {
     return(NULL)
   })
   
+  
+  
   if (is.null(conn)) return(NULL)
   on.exit(DBI::dbDisconnect(conn))
+  
+  
+  
+  ensure_columns_exist(conn, table, data)
+  
   
   # Ensure UTF-8 encoding for character data before sending to DB
   data[] <- lapply(data, function(x) {
@@ -118,7 +166,7 @@ saveRawInputs <- function(data, table = dbtable) {
     "\n\n"
   )
   
-  cat(log_content, file = "/srv/shiny-server/farmers/debug_sql_log.txt", append = TRUE)
+  cat(log_content, file = "/srv/shiny-server/policymakers/debug_sql_log.txt", append = TRUE)
   
   
   tryCatch({
@@ -133,7 +181,7 @@ saveRawInputs <- function(data, table = dbtable) {
       "\n\n"
     )
     cat(log_content,
-        file = "/srv/shiny-server/farmers/event_log.txt", append = TRUE)
+        file = "/srv/shiny-server/policymakers/event_log.txt", append = TRUE)
     showNotification(paste("DB write error:", e$message), type = "error")
   })
 }
@@ -142,14 +190,13 @@ saveRawInputs <- function(data, table = dbtable) {
 # SaveData1: simplified numerical scoring for downstream analysis
 saveScoringData <- function(data, table = dbtable) {
   if (nrow(data) == 0 || !"session_token" %in% names(data)) return(NULL)
-  
+
   conn <- tryCatch({
     if (mode == "online") {
       DBI::dbConnect(RPostgres::Postgres(),
-                     host = host, port = port,
-                     user = user, password = password,
-                     dbname = dbname,
-                     options = "-c search_path=public")
+        host = host, port = port, user = user, password = password,
+        dbname = dbname, options = "-c search_path=public"
+      )
     } else {
       DBI::dbConnect(RSQLite::SQLite(), "TestDatabase.sqlite")
     }
@@ -157,110 +204,67 @@ saveScoringData <- function(data, table = dbtable) {
     message("❌ DB connection failed: ", e$message)
     return(NULL)
   })
-  
   if (is.null(conn)) return(NULL)
   on.exit(DBI::dbDisconnect(conn))
-  
-  # Ensure UTF-8 encoding for character data
-  data_sanitized <- as.data.frame(lapply(data, function(x) {
-    if (is.character(x)) {
-      iconv(x, from = "", to = "UTF-8")
-    } else {
-      x
-    }
-  }), stringsAsFactors = FALSE)
-  # Preserve original names if as.data.frame messes them up
-  names(data_sanitized) <- names(data)
-  
-  
-  token_value_for_where <- data_sanitized$session_token[1]
-  
-  fields_to_update <- setdiff(names(data_sanitized), "session_token")
-  if (length(fields_to_update) == 0) return(NULL)
-  
-  set_clause <- paste0(fields_to_update, " = $", seq_along(fields_to_update), collapse = ", ")
-  query <- sprintf(
+
+  # Ensure columns exist first
+  ensure_columns_exist(conn, table, data)
+
+  # UTF-8 normalisation
+  data <- as.data.frame(lapply(data, function(x) if (is.character(x)) iconv(x, "", "UTF-8") else x),
+                        stringsAsFactors = FALSE)
+  cols <- names(data)
+  col_q <- DBI::dbQuoteIdentifier(conn, cols)
+
+  placeholders <- paste0("$", seq_along(cols), collapse = ", ")
+  set_clause   <- paste(sprintf("%s = EXCLUDED.%s", col_q, col_q), collapse = ", ")
+
+  sql <- sprintf(
     "INSERT INTO %s (%s) VALUES (%s)
-   ON CONFLICT (session_token) DO UPDATE SET %s",
-    table,
-    paste(fields_to_update, collapse = ", "),
-    paste0("$", seq_along(fields_to_update), collapse = ", "),
-    paste(sprintf("%s = EXCLUDED.%s", fields_to_update, fields_to_update), collapse = ", ")
-  )
-  
-  
-  # Include session_token in both fields and values
-  all_fields <- names(data_sanitized)
-  placeholders <- paste0("$", seq_along(all_fields), collapse = ", ")
-  
-  query <- sprintf(
-    "INSERT INTO %s (%s) VALUES (%s)
-   ON CONFLICT (session_token) DO UPDATE SET %s",
-    table,
-    paste(all_fields, collapse = ", "),
+     ON CONFLICT (%s) DO UPDATE SET %s",
+    DBI::dbQuoteIdentifier(conn, table),
+    paste(col_q, collapse = ", "),
     placeholders,
-    paste(sprintf("%s = EXCLUDED.%s", setdiff(all_fields, "session_token"), setdiff(all_fields, "session_token")), collapse = ", ")
+    DBI::dbQuoteIdentifier(conn, "session_token"),
+    set_clause
   )
-  
-  values_list <- unname(as.list(data_sanitized[1, all_fields, drop = FALSE]))
-  
+
+  vals <- unname(as.list(data[1, , drop = FALSE]))
   tryCatch({
-    DBI::dbExecute(conn, query, params = values_list)
+    DBI::dbExecute(conn, sql, params = vals)
   }, error = function(e) {
-    log_content <- paste(
-      Sys.time(),
-      "\nQuery failed:", query,
-      "\nError:", e$message,
-      "\nData for SET:", paste(fields_to_update, "=", sapply(data_sanitized[1, fields_to_update, drop=FALSE], function(v) if(is.character(v)) paste0("'",v,"'") else v), collapse=", "),
-      "\nToken for WHERE:", token_value_for_where,
-      "\n\n"
-    )
-    cat(log_content,
-        file = "/srv/shiny-server/farmers/event_log.txt", append = TRUE)
+    cat(paste(Sys.time(), "\nQuery failed:", sql, "\nError:", e$message,
+              "\nData:", paste(cols, "=", sapply(vals, function(v) if(is.character(v)) paste0("'", v, "'") else v), collapse = ", "),
+              "\n\n"),
+        file = "/srv/shiny-server/policymakers/event_log.txt", append = TRUE)
     showNotification(paste("DB write error:", e$message), type = "error")
   })
 }
 
 
 
-readResults <- function(token_value = session_token(), table = dbtable) {
-  if (is.null(token_value) || token_value == "") return(NULL)
-  
-  conn <- tryCatch({
-    if (mode == "online") {
-      DBI::dbConnect(RPostgres::Postgres(),
-                     host = host, port = port,
-                     user = user, password = password,
-                     dbname = dbname)
-    } else {
-      DBI::dbConnect(RSQLite::SQLite(), "TestDatabase.sqlite")
-    }
-  }, error = function(e) {
-    message("❌ DB connection failed: ", e$message)
-    return(NULL)
-  })
-  
-  if (is.null(conn)) return(NULL)
-  on.exit(DBI::dbDisconnect(conn))
-  
-  query <- sprintf("SELECT * FROM %s WHERE session_token = '%s'", table, token_value)
-  
-  result <- tryCatch({
-    DBI::dbGetQuery(conn, query)
-  }, error = function(e) {
-    message("❌ DB read error: ", e$message)
-    return(NULL)
-  })
-  
-  result[] <- lapply(result, function(x) {
-    if (is.character(x)) iconv(x, from = "", to = "UTF-8") else x
-  })
-  
-  return(result)
+readResults <- function(token_value = session_token(),
+                        table = dbtable,
+                        mode  = "online",
+                        conn  = NULL) {
+  if (is.null(token_value) || token_value == "") return(data.frame())
+
+  local_conn <- is.null(conn)
+  if (local_conn) conn <- connect_to_db(mode)
+  if (is.null(conn)) return(data.frame())
+  on.exit(if (local_conn) DBI::dbDisconnect(conn), add = TRUE)
+
+  sql <- sprintf("SELECT * FROM %s WHERE %s = $1",
+                 DBI::dbQuoteIdentifier(conn, table),
+                 DBI::dbQuoteIdentifier(conn, "session_token"))
+
+  out <- tryCatch(DBI::dbGetQuery(conn, sql, params = list(token_value)),
+                  error = function(e) { message("❌ DB read error: ", e$message); data.frame() })
+
+  # Consistent UTF-8 normalisation
+  if (nrow(out)) out[] <- lapply(out, function(x) if (is.character(x)) iconv(x, "", "UTF-8") else x)
+  out
 }
-
-
-
 
 
 safe_isolate_string <- function(x) {
@@ -270,94 +274,15 @@ safe_isolate_string <- function(x) {
 }
 
 
-
-
-
-
 # ===== UI =====
 ui <- fluidPage(
   tags$head(
     tags$link(rel = "icon", href = "favicon.ico", type = "image/x-icon"),
     tags$link(rel = "stylesheet", href = "app.css"),
-    tags$script(HTML("
-  Shiny.addCustomMessageHandler('restartApp', function(msg) {
-    localStorage.clear();
-    location.reload();
-  });
-")),
-    tags$script(HTML("
-  // On page load, push initial state
-  $(document).on('shiny:connected', function() {
-  if (window.history && window.history.pushState && 
-      Shiny.shinyapp && Shiny.shinyapp.$inputValues) {
-    const currentPage = Shiny.shinyapp.$inputValues.currentPage || 0;
-    window.history.replaceState({page: currentPage}, '');
-  }
-  });
-
-  // Listen for currentPage changes and update browser history
-  Shiny.addCustomMessageHandler('pushPageState', function(page) {
-    if (window.history && window.history.pushState) {
-      window.history.pushState({page: page}, '');
-    }
-  });
-
-  // Handle browser Back/Forward button
-  window.onpopstate = function(event) {
-    if (event.state && typeof event.state.page !== 'undefined') {
-      Shiny.setInputValue('browserBackPage', event.state.page, {priority: 'event'});
-    }
-  };
-")),
-    tags$script(HTML("
-      function clearLocalStorage() {
-        localStorage.clear();
-        location.reload();
-      }
-
-      function getFromLocalStorage(key) {
-        return localStorage.getItem(key) || '';
-      }
-
-      Shiny.addCustomMessageHandler('disconnectedAlert', function(msg) {
-        $(document).on('shiny:disconnected', function() {
-          alert(msg);
-        });
-      });
-
-      Shiny.addCustomMessageHandler('saveToLocalStore', function(msg) {
-        localStorage.setItem(msg.key, msg.value);
-      });
-
-      Shiny.addCustomMessageHandler('setSessionToken', function(msg) {
-        localStorage.setItem('sessionToken', msg);
-      });
-
-      Shiny.addCustomMessageHandler('updateCurrentPage', function(msg) {
-        localStorage.setItem('currentPage', msg);
-      });
-
-      $(document).on('shiny:connected', function() {
-        var sessionToken = getFromLocalStorage('sessionToken');
-        if (sessionToken) {
-          Shiny.setInputValue('restoredSessionToken', sessionToken);
-        }
-        var savedPage = getFromLocalStorage('currentPage');
-        if (savedPage !== null) {
-          Shiny.setInputValue('restoredPage', savedPage);
-        }
-      });
-
-      Shiny.addCustomMessageHandler('clearCurrentInputs', function(msg) {
-        const keysToRemove = msg.keys || [];
-        keysToRemove.forEach(key => localStorage.removeItem(key));
-      });
-      
-      Shiny.addCustomMessageHandler('scrollTop', function(message) {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      });
-    "))
+    tags$script(src = "app.js")
   ),
+  
+  
   
   # LOGO
   div(
@@ -412,6 +337,8 @@ ui <- fluidPage(
 
 
 
+
+
 # ===== SERVER =====
 server <- function(input, output, session) {
 
@@ -430,7 +357,14 @@ server <- function(input, output, session) {
       message("📦 Commune centroids has ", nrow(commune_centroids_reactive()), " rows")
     }
   })
-  #observeRegionSelection(input, output, session, lang = input$lang %||% "French")
+  observeEvent(input$btnStart, {
+    lang <- isolate(input$lang %||% "French")
+    if (!isTRUE(input$consent)) {
+      showNotification(t("missing_consent", lang), type = "error", duration = 5)
+      return()
+    }
+    currentPage(currentPage() + 1)
+  })
   
   once <- reactiveVal(TRUE) 
   # Setup session token and page
@@ -438,53 +372,93 @@ server <- function(input, output, session) {
   
   currentPage <- reactiveVal(0)
   
-  observeEvent(input$restoredSessionToken, {
-    lang <- isolate(input$lang %||% "French")
-    if (is.null(input$restoredSessionToken) || input$restoredSessionToken == "") {
-      if (is.null(session_token())) session_token(generateUserID())
-    } else {
-      
-      session_token(input$restoredSessionToken)
-      
-    }
-    print(paste("Session token on page", currentPage(), "=", session_token()))
-  })
-  
-  observe({
-    lang <- isolate(input$lang %||% "French")
-    if (is.null(session_token())) {
-      session_token(generateUserID())
-      message("⚠️ session_token was null — generated new token.")
-    }
-  })
-  
-  
   observeEvent(input$restoredPage, {
-    lang <- isolate(input$lang %||% "French")
-    restoredPage <- suppressWarnings(as.numeric(input$restoredPage))
-    if (!is.na(restoredPage)) currentPage(restoredPage)
+    restored <- suppressWarnings(as.numeric(input$restoredPage))
+    if (!is.na(restored)) currentPage(restored)
   })
-  #### observeEvent(currentPage()####
+  
+  
   observeEvent(currentPage(), {
     lang <- isolate(input$lang %||% "French")
-    session$sendCustomMessage("updateCurrentPage", currentPage())
-    session$sendCustomMessage("setSessionToken", session_token())
-    session$sendCustomMessage("scrollTop", list())
-    # Send default if input$lang not yet set
-    user_lang <- if (!is.null(input$lang)) input$lang else "French"
-    session$sendCustomMessage("disconnectedAlert", t("disconnected_alert", user_lang))
-    session$sendCustomMessage("pushPageState", currentPage())
-  })
-  observeEvent(input$browserBackPage, {
-    if (!is.null(input$browserBackPage) && is.finite(input$browserBackPage)) {
-      currentPage(as.numeric(input$browserBackPage))
+
+    # Logic for redirecting to page 0 if session is invalid
+    if (currentPage() != 0 && (is.null(session_token()) || session_token() == "")) {
+      currentPage(0)
+      session$sendCustomMessage("clearLocalStorageKey", list(key = "policy_sessionToken"))
+      showNotification("Invalid session. Redirecting to start page.", type = "warning", duration = 5)
+      return()
+    }
+
+    # Logic for sending page change message and updating session token in local storage
+    session$sendCustomMessage('pageChanged', list(
+      page      = currentPage(),
+      lang      = input$lang %||% 'French',
+      timestamp = Sys.time()
+    ))
+    session$sendCustomMessage("setSessionToken", list(key = "policy_sessionToken", value = session_token()))
+
+    # Logic for resetting map coordinates
+    # Reset location when user changes page or country/region
+    if (currentPage() != 7) {
+      userCoords$lat <- NULL
+      userCoords$lon <- NULL
     }
   })
+  
+  observeEvent(input$browserBackPage, {
+    target <- suppressWarnings(as.integer(input$browserBackPage))
+    if (!is.na(target)) currentPage(target)
+  })
+  
+  
+  
+  
+  observeEvent(input$restoredSessionToken, {
+    restored_token <- input$restoredSessionToken
+    # Only restore if it's a non-empty string and not "[]"
+    if (!is.null(restored_token) && restored_token != "" && restored_token != "[]") {
+      session_token(restored_token)
+      print(paste("Restored session token:", session_token()))
+    }
+  })
+  
+  # New observe block for redirect logic
+  observe({
+    current_page_val <- currentPage()
+    session_token_val <- session_token() # Access reactive value
+
+    # Only enforce redirect if a restored token has been processed (input$restoredSessionToken is set)
+    # and if the current page is not 0, and the session token is invalid.
+    if (!is.null(input$restoredSessionToken) && # Check if restored token has been processed
+        current_page_val != 0 &&
+        (is.null(session_token_val) || session_token_val == "")) {
+      
+      currentPage(0)
+      session$sendCustomMessage("clearLocalStorageKey", list(key = "policy_sessionToken"))
+      showNotification("Invalid session. Redirecting to start page.", type = "warning", duration = 5)
+    }
+  })
+  
   
   
   userCoords <- reactiveValues(lat = NULL, lon = NULL)
   
   
+  
+  ###soil serivce server component####
+  observeEvent({
+    input$soil_service_1
+    input$soil_service_2
+  }, {
+    req(input$currentPage == 7)  # only send message on page 7
+    
+    selected <- list(
+      soil_service_1 = input$soil_service_1,
+      soil_service_2 = input$soil_service_2
+    )
+    
+    session$sendCustomMessage("updateServiceDropdowns", selected)
+  }, ignoreInit = TRUE)
   
   
   
@@ -512,8 +486,8 @@ server <- function(input, output, session) {
   
   # ---- Mapping Page state ----
   
-  observe({
-    lang <- input$lang %||% "French"
+  observeEvent(currentPage(), {
+    lang <- isolate(input$lang %||% "French")
     
     # Reset location when user changes page or country/region
     if (currentPage() != 7) {
@@ -586,7 +560,7 @@ server <- function(input, output, session) {
   
   
   observeEvent(input$soilMap_new_click, {
-    lang <- input$lang %||% "French"
+    lang <- isolate(input$lang %||% "French")
     
     click <- input$soilMap_new_click
     if (!is.null(click$lat) && !is.null(click$lng)) {
@@ -599,7 +573,7 @@ server <- function(input, output, session) {
   })
   
   observeEvent(input$region2, {
-    lang <- input$lang %||% "French"
+    lang <- isolate(input$lang %||% "French")
     
     req(input$country, input$region1, input$region2)
     commune_centroids <- commune_centroids_reactive()
@@ -640,6 +614,7 @@ server <- function(input, output, session) {
     })
   })
   
+  
   # 
   output$Soil_Type_Description_count_new <- renderText({
     desc <- input$soil_type_description %||% ""
@@ -647,12 +622,6 @@ server <- function(input, output, session) {
   })
   # 
   # 
-  ##mini Map####
-  
-  
-  
-  
-  
   
   
   # Render multilingual UI
@@ -667,23 +636,25 @@ server <- function(input, output, session) {
         fluidPage(
           
           
-          titlePanel(t("page0_intro_header", lang)),  
-          h3(t("page0_intro_header2", lang)),
-          h4(t("page0_intro_header3", lang)),
+          titlePanel(t("page0_intro_header", lang)), 
+          br(),
           HTML(sprintf("<p>%s</p>", t("page0_intro_text", lang))),
-          h4(t("page0_intro_header4", lang)),
-          tags$ul(
-            tags$li(t("page0_info1", lang)),
-            tags$li(t("page0_info2", lang)),
-            tags$li(t("page0_info3", lang)),
-            tags$li(t("page0_info4", lang)),
-            tags$li(t("page0_info5", lang)),
-            tags$li(t("page0_info6", lang)),
-            tags$li(t("page0_info7", lang))
-          ),
-          HTML(sprintf("<p>%s</p>", t("page0_info8", lang))),
+          HTML(sprintf("<p>%s</p>", t("page0_intro_text2", lang))),
+          br(),
+          h3(t("page0_intro_header2", lang)),
+          HTML(sprintf("<p>%s</p>", t("page0_intro_text3", lang))),
+          br(),
+          HTML(sprintf("<p>%s</p>", t("page0_intro_text4", lang))),
+          HTML(sprintf("<p>%s</p>", t("page0_intro_text5", lang))),
+          br(),
+          
           checkboxInput("consent", t("consent_text", lang), value = FALSE),
-          actionButton("btnStart", t("nav_start", lang), class = "btn-primary")
+          actionButton("btnStart", t("nav_start", lang), class = "btn-primary"),
+          br(),
+          br(),
+          HTML(sprintf("<p>%s</p>", t("page0_intro_text6", lang))),
+          
+          
         )
       )
       
@@ -692,53 +663,55 @@ server <- function(input, output, session) {
       
       ## PAGE 1: PRESENTATION #############################
     } else if(p == 1){
-      
       lang <- isolate(input$lang %||% "French")
       
       fluidPage(
-        h3(t("PRESENTATION_header", lang)),
-        p(t("PRESENTATION_intro_text", lang)),
+        h3(t("PRESENTATION_header", input$lang)),
         
-        radioButtons("role", t("role_Q", lang), 
-                     choices = setNames(
-                       c("farmer", "other"),
-                       c(t("role_A1", lang), t("role_A2", lang))
-                     ),
-                     selected = isolate(input$role %||% character(0))
-        ),
+        p(t("PRESENTATION_intro_text", input$lang)),
         
+        
+        br(),
+        uiOutput("poste_1"),
         conditionalPanel(
-          condition = "input.role == 'other'",
-          textInput("other_role", t("other_role_A3", lang), 
-                    value = safe_isolate_string(input$other_role %||% ""))
+          condition = "input.poste && input.poste.includes('other')",
+          textInput("other_poste", t("other_poste", input$lang),
+                    value = safe_isolate_string(input$other_poste %||% ""))
         ),
         
-        uiOutput("farmEnterprises_1"),
+        br(),
         
+        uiOutput("role_1"),
         conditionalPanel(
-          condition = "input.farmEnterprises && input.farmEnterprises.includes('Autre (précisez)')",
-          textInput("other_farmEnterprises", t("other_farmEnterprises", lang),
-                    value = safe_isolate_string(input$other_farmEnterprises %||% ""))
+          condition = "input.role && input.role.includes('other')",
+          textInput("other_role", t("other_role_autres", input$lang),
+                    value = safe_isolate_string(input$input.role %||% ""))
         ),
+        
+        br(),
+        
         
         uiOutput("perceivedThreats_1"),
         
         conditionalPanel(
           condition = "input.perceivedThreats && input.perceivedThreats.includes('Autre (précisez)')", 
-          textInput("other_perceivedThreats", t("other_perceivedThreats", lang),
+          textInput("other_perceivedThreats", t("other_perceivedThreats", input$lang),
                     value = safe_isolate_string(input$other_perceivedThreats %||% ""))
         ),
         
-        actionButton("PRESENTATION_Back", t("nav_back", lang)),
-        actionButton("PRESENTATION_Next", t("nav_next", lang))
+        
+        actionButton("PRESENTATION_Back", t("nav_back", input$lang)),
+        actionButton("PRESENTATION_Next", t("nav_next", input$lang))
       )
       
       ### PAGE 2 CHAINES D'APPRO ############################
-    }   else if (p == 2) {
+    }    else if (p == 2) {
       tagList(   
+        
         h3(t("Supply_header", input$lang)),
         
         exclusiveCheckboxScript("supply_newconcepts", "supply_newconcepts_5"),
+        
         uiOutput("supply_newconcepts_1"),
         
         radioButtons("supply_approach", 
@@ -752,7 +725,8 @@ server <- function(input, output, session) {
                          t("supply_approach_A4", input$lang)
                        )
                      ),
-                     selected = input$supply_approach %||% character(0)
+                     selected = isolate(input$supply_approach %||% character(0))
+                     
         ),
         
         radioButtons("supply_opinion", 
@@ -766,13 +740,14 @@ server <- function(input, output, session) {
                          t("supply_opinion_A4", input$lang)
                        )
                      ),
-                     selected = input$supply_opinion %||% character(0)
+                     selected = isolate(input$supply_opinion %||% character(0))
+                     
         ),
         
         actionButton("Supply_Back", t("nav_back", input$lang)),
         actionButton("Supply_Next", t("nav_next", input$lang))
+        
       )
-    
       
       ### PAGE 3: SÉCURITÉ ALIMENTAIRE ############################
     }     else if (p == 3) {
@@ -901,8 +876,8 @@ server <- function(input, output, session) {
         radioButtons("intSec_validation",
                      t("intSec_val_Q", input$lang),
                      choices = setNames(c("YES", "NO"),
-                                        c(t("intSec_validation_A1", input$lang),
-                                          t("intSec_validation_A2", input$lang))),
+                                        c(t("intSec_val_A1", input$lang),
+                                          t("intSec_val_A2", input$lang))),
                      selected = isolate(input$intSec_validation %||% character(0))
         ),
         
@@ -962,12 +937,12 @@ server <- function(input, output, session) {
                      selected = isolate(input$defense_validation %||% character(0))
         ),
         
-        textAreaInput("defense_validation2", 
-                      label = t("defense_validation_text", input$lang),
-                      placeholder = t("comment_placeholder", input$lang),
-                      width = "100%", height = "100px",
-                      value = isolate(input$commentaires %||% "")
-        ),
+        isolate(textAreaInput("defense_validation2", 
+                              label = t("defense_validation_text", input$lang),
+                              placeholder = t("comment_placeholder", input$lang),
+                              width = "100%", height = "100px",
+                              value = safe_isolate_string(input$commentaires %||% "")
+        )),
         
         actionButton("defense_Back", t("nav_back", input$lang)),
         actionButton("defense_Next", t("nav_next", input$lang))
@@ -978,27 +953,22 @@ server <- function(input, output, session) {
     } else if (p == 7) {
       fluidPage(
         h3(t("map_header", input$lang)),
-        
-        br(),
         p(t("Soil_intro_text", input$lang)),
-        
         br(),
-        h4(t("Soil_focus_text", input$lang)),
+        p(t("Soil_focus_text", input$lang)),
         br(),
         radioButtons(
           "numberSoilTypes",
-          t("numberSoilTypes_Q", input$lang),
-          choices = c(
-            "1" = 1,
-            "2-3" = "2-3",
-            "4+" = "4+"
-          ),
-          selected = character(0)  # or a default like 1
+          t("numberSoilTypes_policy_Q", input$lang),  # Updated key
+          choices = c("1", "2–3", "4+", t("dont_know", input$lang)),
+          selected = character(0)
         ),
         
+        
         br(),
+        br(),
+        
         p(t("Map_instruction", input$lang)),
-        br(),
         
         # Country selection
         selectInput("country", t("select_country", input$lang),
@@ -1013,26 +983,28 @@ server <- function(input, output, session) {
         br(),
         leafletOutput("soilMap_new", height = 450),
         br(),
-        actionButton("no_gps_button", t("no_gps_button_label", input$lang), class = "btn-outline-secondary"),
         
-        textOutput("selected_coords_new"),
+        textOutput("location_selected_label"),
         br(),
         
         
-
-        
-        # # Soil type description
-        textAreaInput(
-          "soil_type_description",
-          t("Soil_Type_Description_Q", input$lang),
-          value = isolate(input$soil_type_description %||% ""),
-          placeholder = t("comment_placeholder", input$lang),
-          width = "100%", height = "100px"
-        ),
-        
-        
+        textAreaInput("soil_type_description",
+                      t("Soil_Type_Description_Q", input$lang),
+                      placeholder = t("comment_placeholder", input$lang),
+                      width = "100%", height = "100px",
+                      value = safe_isolate_string(input$soil_type_description %||% "")),
         
         textOutput("Soil_Type_Description_count_new"),
+        
+        
+        
+        br(),
+        
+        uiOutput("soilServiceRankingUI"),
+        
+        
+        
+        
         br(),
         actionButton("map_Back", t("nav_back", input$lang)),
         actionButton("map_Next", t("nav_next", input$lang))
@@ -1634,7 +1606,8 @@ server <- function(input, output, session) {
         textInput(
           "Threat_Val_NM_comment",
           t("Threat_Val_NM_comment", input$lang),
-          value = safe_isolate_string(input$Threat_Val_NM_comment %||% "")),
+          value = safe_isolate_string(input$Threat_Val_NM_comment %||% "")
+        ),
         
         # Decarbonisation
         radioButtons("Threat_Val_DC", t("Threat_Val_DC_Q", input$lang),
@@ -1709,16 +1682,10 @@ server <- function(input, output, session) {
         
         uiOutput("Land_ownership_1"),
         
-        tryCatch({
-          numericInput(
-            "Land_area", t("Land_area_Q", input$lang),
-            value = isolate(if (is.null(input$Land_area)) NA else input$Land_area),
-            min = 0
-          )
-        }, error = function(e) {
-          print(paste("Error in Land_area numericInput:", e$message))
-          NULL
-        }),
+        numericInput(
+          "Land_area", t("Land_area_Q", input$lang),
+          value =isolate(if (is.null(input$Land_area)) NA else input$Land_area),
+        ),
         br(),
         
         # --- Optional: Receive results/contact for studies ---
@@ -1734,7 +1701,7 @@ server <- function(input, output, session) {
         conditionalPanel(
           condition = "input.receive_results == 'yes'",
           textInput("contact_email", t("receive_results_email", input$lang),
-                    safe_isolate_string(input$contact_email %||% ""))
+                    value = safe_isolate_string(input$contact_email %||% ""))
         ),
         p(tags$em(t("receive_results_privacy", input$lang))),
         br(),
@@ -1765,43 +1732,78 @@ server <- function(input, output, session) {
   
   
   
-  ###Presentation addition  ####
+  ####Presentation addition  ####
   
-  output$farmEnterprises_1 <- renderUI({
+  
+  output$poste_1 <- renderUI({
     tryCatch({
-      message("🔍 farmEnterprises_1 entered")
-      label <- t("farmEnterprises_Q", input$lang)
+      label <- t("poste_Q", input$lang)
       choices <- setNames(
+        c(paste0("poste_", 1:27), "other"),
         c(
-          "Cultures de céréales",
-          "Lait",
-          "Élevage extensif de moutons ou de bovins",
-          "Élevage intensif de moutons ou de bovins",
-          "Porc ou volaille en plein air",
-          "Cultures horticoles en champ",
-          "Vignes",
-          "Verger – fruits, noix",
-          "Autre (précisez)"
-        ),
-        c(
-          t("farmEnterprises_A1", input$lang),
-          t("farmEnterprises_A2", input$lang),
-          t("farmEnterprises_A3", input$lang),
-          t("farmEnterprises_A4", input$lang),
-          t("farmEnterprises_A5", input$lang),
-          t("farmEnterprises_A6", input$lang),
-          t("farmEnterprises_A7", input$lang),
-          t("farmEnterprises_A8", input$lang),
-          t("farmEnterprises_A9", input$lang)
+          t("poste_A1", input$lang), t("poste_A2", input$lang), t("poste_A3", input$lang),
+          t("poste_A4", input$lang), t("poste_A5", input$lang), t("poste_A6", input$lang),
+          t("poste_A7", input$lang), t("poste_A8", input$lang), t("poste_A9", input$lang),
+          t("poste_A10", input$lang), t("poste_A11", input$lang), t("poste_A12", input$lang),
+          t("poste_A13", input$lang), t("poste_A14", input$lang), t("poste_A15", input$lang),
+          t("poste_A16", input$lang), t("poste_A17", input$lang), t("poste_A18", input$lang),
+          t("poste_A19", input$lang), t("poste_A20", input$lang), t("poste_A21", input$lang),
+          t("poste_A22", input$lang), t("poste_A23", input$lang), t("poste_A24", input$lang),
+          t("poste_A25", input$lang), t("poste_A26", input$lang), t("poste_A27", input$lang),
+          t("other_poste", input$lang)
         )
       )
-      message("✅ Choices for farmEnterprises built")
-      checkboxGroupInput("farmEnterprises", label = label, choices = choices, selected = input$farmEnterprises)
+      div(
+        class = "checkbox-multicol",
+        checkboxGroupInput("poste", label = label, choices = choices, selected = input$poste)
+      )
     }, error = function(e) {
-      message("❌ ERROR in farmEnterprises_1: ", e$message)
-      div(style = "color:red;", "⚠ Error loading farmEnterprises")
+      message("❌ ERROR in poste_1: ", e$message)
+      div(style = "color:red;", "⚠ Error loading 'poste' options")
+    })
+  }) 
+  
+  
+  
+  
+  output$role_1 <- renderUI({
+    tryCatch({
+      label <- t("role_Q", input$lang)
+      choices <- setNames(
+        c(paste0("role_", 1:16), "other"),
+        c(
+          t("role_A1", input$lang), 
+          t("role_A2", input$lang), 
+          t("role_A3", input$lang),
+          t("role_A4", input$lang), 
+          t("role_A5", input$lang), 
+          t("role_A6", input$lang),
+          t("role_A7", input$lang), 
+          t("role_A8", input$lang), 
+          t("role_A9", input$lang),
+          t("role_A10", input$lang), 
+          t("role_A11", input$lang), 
+          t("role_A12", input$lang),
+          t("role_A13", input$lang), 
+          t("role_A14", input$lang), 
+          t("role_A15", input$lang),
+          t("role_A16", input$lang), 
+          t("other_role_autres", input$lang)
+        )
+      )
+      div(
+        class = "checkbox-multicol",
+        checkboxGroupInput("role", label = label, choices = choices, selected = input$role)
+      )
+    }, error = function(e) {
+      message("❌ ERROR in role_1: ", e$message)
+      div(style = "color:red;", "⚠ Error loading 'role' options")
     })
   })
+  
+  
+  
+  
   
   
   output$perceivedThreats_1 <- renderUI({
@@ -1901,6 +1903,48 @@ server <- function(input, output, session) {
       t_func = t
     )
   })
+  
+  
+  
+  
+  ####Map page####
+output$soilServiceRankingUI <- renderUI({
+  lang <- input$lang %||% "French"
+  
+  services_labels <- c(
+    t("soil_service_1", lang),
+    t("soil_service_2", lang),
+    t("soil_service_3", lang),
+    t("soil_service_4", lang),
+    t("soil_service_5", lang),
+    t("soil_service_6", lang),
+    t("soil_service_7", lang)
+  )
+  
+  # Create a list of numeric choices for ranking
+  rank_choices <- 1:7
+  
+  # Create a list of UI elements for each service
+  ui_elements <- lapply(seq_along(services_labels), function(i) {
+    div(
+      class = "soil-service-ranking-item",
+      tags$label(services_labels[i]),
+      selectInput(
+        inputId = paste0("soil_service_rank_", i),
+        label = NULL, # Label is already provided by tags$label
+        choices = c("", rank_choices), # Add an empty choice for no selection
+        selected = ""
+      )
+    )
+  })
+  
+  tagList(
+    p(t("soil_services_explanation", lang)),
+    h4(t("rank_services_Q", lang)), # Keep the question header
+    ui_elements
+  )
+})
+outputOptions(output, "soilServiceRankingUI", suspendWhenHidden = FALSE)  
   
   ###E_K_1####
   output$E_K_1 <- renderUI({
@@ -2022,7 +2066,7 @@ server <- function(input, output, session) {
   })
   
   output$finalScoreMessage <- renderUI({
-    res <- readResults(session_token(), table = "farmers_results")
+    res <- readResults(session_token(), table = "policymakers_results")
     if (is.null(res) || nrow(res) == 0) {
       return(div(style = "color:#a00; font-weight:600;", t("no_results_found", input$lang)))
     }
@@ -2057,22 +2101,46 @@ server <- function(input, output, session) {
   
   ##Buttons####
   
-  
   observeEvent(input$btnStart, {
-    lang <- isolate(input$lang %||% "French")
     req(input$consent)
+    lang <- isolate(input$lang %||% "French")
     
-    data_row <- data.frame(
-      session_token = session_token(),
-      timestamp = format(Sys.time(), tz = "UTC", usetz = FALSE),
-      language = input$lang,
-      stringsAsFactors = FALSE
+    # If session_token is not set (meaning not restored from local storage), generate a new one
+    if (is.null(session_token())) {
+      session_token(generateUserID())
+      message("Generated new session token on btnStart click.")
+    }
+
+    # force plain strings
+    policyTok      <- as.character(session_token())
+    
+    session$sendCustomMessage(
+      "setSessionToken",
+      list(
+        key   = "policy_sessionToken",
+        value = policyTok
+      )
     )
     
     
+    farmerTok      <- as.character(input$storedFarmerSessionToken   %||% "")
+    landManagerTok <- as.character(input$storedLandManagerSessionToken %||% "")
+    
+    # assemble row
+    data_row <- data.frame(
+      session_token             = policyTok,
+      farmers_session_token     = farmerTok,
+      landmanager_session_token = landManagerTok,
+      timestamp                 = format(Sys.time(), tz = "UTC", usetz = FALSE),
+      language                  = input$lang,
+      stringsAsFactors          = FALSE
+    )
+    
+    
+    # save into your DB
     saveRawInputs(data_row)
     
-    
+    # move to page 1
     currentPage(1)
   })
   
@@ -2091,17 +2159,9 @@ server <- function(input, output, session) {
     
     
     # Validate required inputs
-    if (is.null(input$role) || !(input$role %in% c("farmer", "other"))) {
-      showNotification(t("missing_role", lang), type = "error")
-      return()
-    }
+    
     if (is.null(input$perceivedThreats) || length(input$perceivedThreats) == 0) {
       showNotification(t("missing_threats", lang), type = "error")
-      return()
-    }
-    
-    if ("Autre (précisez)" %in% input$farmEnterprises && is.null(input$other_farmEnterprises)) {
-      showNotification(t("missing_other_farm", lang), type = "error")
       return()
     }
     
@@ -2113,6 +2173,7 @@ server <- function(input, output, session) {
     # Safe data frame creation
     data_row <- data.frame(
       session_token = token,
+      currentPage = currentPage(),
       role = input$role %||% "",
       other_role = input$other_role %||% "",
       other_farmEnterprises = input$other_farmEnterprises %||% "",
@@ -2157,6 +2218,7 @@ server <- function(input, output, session) {
     
     data_row <- data.frame(
       session_token = session_token(),
+      currentPage = currentPage(),
       supply_newconcepts = csv_collapse(input$supply_newconcepts),
       supply_approach = input$supply_approach,
       supply_opinion = input$supply_opinion,
@@ -2167,7 +2229,7 @@ server <- function(input, output, session) {
     
     score_data <- scoreSupplySection(input, session_token())
     
-    saveScoringData(score_data, table = "farmers_results")
+    saveScoringData(score_data, table = "policymakers_results")
     
     clearLocalStorageInputs(session, c(
       "supply_newconcepts", "supply_approach", "supply_opinion"
@@ -2201,6 +2263,7 @@ server <- function(input, output, session) {
     
     data_row <- data.frame(
       session_token = session_token(),
+      currentPage = currentPage(),
       food_newconcepts = csv_collapse(input$food_newconcepts),
       food_approach = input$food_approach,
       food_opinion = input$food_opinion,
@@ -2209,7 +2272,7 @@ server <- function(input, output, session) {
     
     saveRawInputs(data_row)
     score_data <- scoreFoodSection(input, session_token())
-    saveScoringData(score_data, table = "farmers_results")
+    saveScoringData(score_data, table = "policymakers_results")
     
     clearLocalStorageInputs(session, c(
       "food_newconcepts", "food_approach", "food_opinion"
@@ -2240,6 +2303,7 @@ server <- function(input, output, session) {
     
     data_row <- data.frame(
       session_token = session_token(),
+      currentPage = currentPage(),
       econ_newconcepts = paste(input$econ_newconcepts, collapse = ";"),
       econ_approach = input$econ_approach,
       econ_opinion = input$econ_opinion,
@@ -2247,7 +2311,7 @@ server <- function(input, output, session) {
     )
     saveRawInputs(data_row)
     score_data <- scoreEconSection(input, session_token())
-    saveScoringData(score_data, table = "farmers_results")
+    saveScoringData(score_data, table = "policymakers_results")
     
     clearLocalStorageInputs(session, c(
       "econ_newconcepts", "econ_approach", "econ_opinion"
@@ -2285,6 +2349,7 @@ server <- function(input, output, session) {
     
     data_row <- data.frame(
       session_token = session_token(),
+      currentPage = currentPage(),
       intSec_newconcepts = paste(input$intSec_newconcepts, collapse = ";"),
       intSec_approach = input$intSec_approach,
       intSec_opinion = input$intSec_opinion,
@@ -2294,7 +2359,7 @@ server <- function(input, output, session) {
     )
     saveRawInputs(data_row)
     score_data <- scoreIntSecSection(input, session_token())
-    saveScoringData(score_data, table = "farmers_results")
+    saveScoringData(score_data, table = "policymakers_results")
     
     
     clearLocalStorageInputs(session, c(
@@ -2336,6 +2401,7 @@ server <- function(input, output, session) {
     
     data_row <- data.frame(
       session_token = session_token(),
+      currentPage = currentPage(),
       defense_newconcepts = paste(input$defense_newconcepts, collapse = ";"),
       defense_approach = input$defense_approach,
       defense_opinion = input$defense_opinion,
@@ -2345,7 +2411,7 @@ server <- function(input, output, session) {
     )
     saveRawInputs(data_row)
     score_data <- scoreDefenseSection(input, session_token())
-    saveScoringData(score_data, table = "farmers_results")
+    saveScoringData(score_data, table = "policymakers_results")
     
     clearLocalStorageInputs(session, c(
       "defense_newconcepts", "defense_approach", "defense_opinion",
@@ -2365,11 +2431,7 @@ server <- function(input, output, session) {
   
   
   ###Map Page ####
-
-
-  
-  
-  
+  ###
   observeEvent(input$map_Back, {
     lang <- isolate(input$lang %||% "French")
     currentPage(6)
@@ -2402,6 +2464,7 @@ server <- function(input, output, session) {
     
     data_row <- data.frame(
       session_token = session_token(),
+      currentPage = currentPage(),
       number_soil_types = input$numberSoilTypes,
       timestamp_map = format(Sys.time(), tz = "UTC", usetz = FALSE),
       language = input$lang,
@@ -2441,6 +2504,7 @@ server <- function(input, output, session) {
     
     data_row <- data.frame(
       session_token = session_token(),
+      currentPage = currentPage(),
       E_K = paste(input$E_K, collapse = ";"),
       E_approach = input$E_approach,
       E_opinion = input$E_opinion,
@@ -2449,7 +2513,7 @@ server <- function(input, output, session) {
     
     saveRawInputs(data_row)
     score_data <- scoreErosionSection(input, session_token())
-    saveScoringData(score_data, table = "farmers_results")
+    saveScoringData(score_data, table = "policymakers_results")
     
     
     clearLocalStorageInputs(session, c("E_K", "E_approach", "E_opinion", "E_legislation"))
@@ -2482,6 +2546,7 @@ server <- function(input, output, session) {
     
     data_row <- data.frame(
       session_token = session_token(), 
+      currentPage = currentPage(),
       A_K = paste(input$A_K, collapse = ";"),
       A_approach = input$A_approach,
       A_opinion = input$A_opinion,
@@ -2491,7 +2556,7 @@ server <- function(input, output, session) {
     saveRawInputs(data_row)
     
     score_data <- scoreAcidSection(input, session_token())
-    saveScoringData(score_data, table = "farmers_results")
+    saveScoringData(score_data, table = "policymakers_results")
     
     
     clearLocalStorageInputs(session, c("A_K", "A_approach", "A_opinion"))
@@ -2529,6 +2594,7 @@ server <- function(input, output, session) {
     
     saveRawInputs(data.frame(
       session_token = session_token(),
+      currentPage = currentPage(),
       SD_K = csv_collapse(input$SD_K),
       SD_approach = input$SD_approach,
       SD_opinion = input$SD_opinion,
@@ -2536,7 +2602,7 @@ server <- function(input, output, session) {
     ))
     
     score_data <- scoreStructureSection(input, session_token())
-    saveScoringData(score_data, table = "farmers_results")
+    saveScoringData(score_data, table = "policymakers_results")
     
     
     clearLocalStorageInputs(session, c("SD_K", "SD_approach", "SD_opinion"))
@@ -2565,13 +2631,14 @@ server <- function(input, output, session) {
     
     saveRawInputs(data.frame(
       session_token = session_token(),
+      currentPage = currentPage(),
       S_K = csv_collapse(input$S_K),
       S_approach = input$S_approach,
       S_opinion = input$S_opinion,
       stringsAsFactors = FALSE
     ))
     score_data <- scoreSalinitySection(input, session_token())
-    saveScoringData(score_data, table = "farmers_results")
+    saveScoringData(score_data, table = "policymakers_results")
     
     clearLocalStorageInputs(session, c("S_K", "S_approach", "S_opinion"))
     log_event(paste("Saved Page 11 (Salinisation) for:", session_token()))
@@ -2608,6 +2675,7 @@ server <- function(input, output, session) {
     
     saveRawInputs(data.frame(
       session_token = session_token(),
+      currentPage = currentPage(),
       HL_K       = csv_collapse(input$HL_K),
       HL_approach= input$HL_approach,
       HL_opinion = input$HL_opinion,
@@ -2616,7 +2684,7 @@ server <- function(input, output, session) {
     ))
     
     score_data <- scoreBiodiversitySection(input, session_token())
-    saveScoringData(score_data, table = "farmers_results")
+    saveScoringData(score_data, table = "policymakers_results")
     clearLocalStorageInputs(session, c("HL_K", "HL_approach", "HL_opinion", "HL_val1"))
     
     currentPage(13)
@@ -2648,6 +2716,7 @@ server <- function(input, output, session) {
     
     saveRawInputs(data.frame(
       session_token = session_token(),
+      currentPage = currentPage(),
       NM_K       = csv_collapse(input$NM_K),
       NM_approach= input$NM_approach,
       NM_opinion = input$NM_opinion,
@@ -2657,7 +2726,7 @@ server <- function(input, output, session) {
     ))
     
     score_data <- scoreFertilisationSection(input, session_token())
-    saveScoringData(score_data, table = "farmers_results")
+    saveScoringData(score_data, table = "policymakers_results")
     
     
     
@@ -2693,6 +2762,7 @@ server <- function(input, output, session) {
     
     saveRawInputs(data.frame(
       session_token = session_token(),
+      currentPage = currentPage(),
       SW_K = csv_collapse(input$SW_K),
       SW_approach = input$SW_approach,
       SW_opinion = input$SW_opinion,
@@ -2700,7 +2770,7 @@ server <- function(input, output, session) {
     ))
     
     score_data <- scoreWaterSection(input, session_token())
-    saveScoringData(score_data, table = "farmers_results")
+    saveScoringData(score_data, table = "policymakers_results")
     
     
     clearLocalStorageInputs(session, c("SW_K", "SW_approach", "SW_opinion"))
@@ -2736,7 +2806,7 @@ server <- function(input, output, session) {
     ))
     
     score_data <- scoreCarbonSection(input, session_token())
-    saveScoringData(score_data, table = "farmers_results")
+    saveScoringData(score_data, table = "policymakers_results")
     
     clearLocalStorageInputs(session, c("DC_K", "DC_approach", "DC_opinion"))
     log_event(paste("Saved Page 15 (Carbon) for:", session_token()))
@@ -2784,16 +2854,7 @@ server <- function(input, output, session) {
     currentPage(15)
   })
   
-  
-  
   ### Demographics Page ####
-  
-
-  observeEvent(input$final_Back, {
-    lang <- isolate(input$lang %||% "French")
-    currentPage(16)
-  })
-  
   observeEvent(input$submitAll, {
     lang <- isolate(input$lang %||% "French")
     

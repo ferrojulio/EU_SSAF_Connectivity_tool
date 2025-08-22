@@ -1,0 +1,40 @@
+> options(
++   shiny.fullstacktrace = TRUE,
++   shiny.sanitize.errors = FALSE
++ ); shiny::runApp("policymakers", host="0.0.0.0", port=3838, launch.browser=FALSE)
+Loading required package: shiny
+2025-08-22 07:16:49 : Boot: entering app.R 
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+2025-08-22 07:16:49 : Sourcing utils.R 
+Linking to GEOS 3.13.1, GDAL 3.10.2, PROJ 9.5.1; sf_use_s2() is TRUE
+2025-08-22 07:16:50 : Sourcing global.R 
+📦 Loading commune centroids from /srv/shiny-server/all_gadm41_centroids_level2.rds
+✅ Loaded commune centroids: 1516 rows
+2025-08-22 07:16:50 : Sourcing PolicymakersScoring.R 
+2025-08-22 07:16:50 : Sourcing shared_app_components.R 
+2025-08-22 07:16:50 : Finished sourcing, building UI... 
+Warning in checkTranslationKeys(used_translation_keys, translations) :
+  Missing translation keys:
+title_farmers
+missing_supply_newconcepts
+missing_supply_approach
+missing_supply_opinion
+
+Listening on http://0.0.0.0:3838
+createTcpServer: address already in use
+Error in initialize(...) : Failed to create server
+Calls: <Anonymous> ... startApp -> startServer -> <Anonymous> -> initialize
+Error during wrapup: argument "e" is missing, with no default
+Error: no more error handlers available (recursive errors?); invoking 'abort' restart
+> 
+> 

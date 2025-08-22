@@ -1,0 +1,373 @@
+[2025-08-21 23:58:59] Starting landmanagers app.R execution.
+[2025-08-21 23:58:59] Attempting to load translations from landmanagers_translations.csv
+[2025-08-21 23:58:59] Translations loaded. Dimensions: 423x4
+[2025-08-21 23:58:59] First few rows of translations:
+           unique_ID
+1 title_land_manager
+2          nav_start
+3           nav_back
+4           nav_next
+5                yes
+6                 no
+                                                                 French
+1 Etude dédiée aux acteurs de l'immobilier et de la gestion du foncier.
+2                                                             Commencer
+3                                                                Retour
+4                                                               Suivant
+5                                                                   OUI
+6                                                                   NON
+                                                                English
+1 Etude dédiée aux acteurs de l'immobilier et de la gestion du foncier.
+2                                                             Commencer
+3                                                                Retour
+4                                                               Suivant
+5                                                                   OUI
+6                                                                   NON
+                                                                Spanish
+1 Etude dédiée aux acteurs de l'immobilier et de la gestion du foncier.
+2                                                             Commencer
+3                                                                Retour
+4                                                               Suivant
+5                                                                   OUI
+6                                                                   NON
+[2025-08-21 23:59:00] used_translation_keys before checkTranslationKeys: title_farmers, nav_start, nav_back, nav_next, page0_intro_header, page0_intro_text, consent_text, missing_supply_newconcepts, missing_supply_approach, missing_supply_opinion, econ_newconcepts_Q, econ_opinion_A4
+[2025-08-21 23:59:00] checkTranslationKeys executed successfully.
+[2025-08-21 23:59:50] Starting landmanagers app.R execution.
+[2025-08-21 23:59:50] Attempting to load translations from landmanagers_translations.csv
+[2025-08-21 23:59:50] Translations loaded. Dimensions: 423x4
+[2025-08-21 23:59:50] First few rows of translations:
+           unique_ID
+1 title_land_manager
+2          nav_start
+3           nav_back
+4           nav_next
+5                yes
+6                 no
+                                                                 French
+1 Etude dédiée aux acteurs de l'immobilier et de la gestion du foncier.
+2                                                             Commencer
+3                                                                Retour
+4                                                               Suivant
+5                                                                   OUI
+6                                                                   NON
+                                                                English
+1 Etude dédiée aux acteurs de l'immobilier et de la gestion du foncier.
+2                                                             Commencer
+3                                                                Retour
+4                                                               Suivant
+5                                                                   OUI
+6                                                                   NON
+                                                                Spanish
+1 Etude dédiée aux acteurs de l'immobilier et de la gestion du foncier.
+2                                                             Commencer
+3                                                                Retour
+4                                                               Suivant
+5                                                                   OUI
+6                                                                   NON
+[2025-08-21 23:59:50] used_translation_keys before checkTranslationKeys: title_farmers, nav_start, nav_back, nav_next, page0_intro_header, page0_intro_text, consent_text, missing_supply_newconcepts, missing_supply_approach, missing_supply_opinion, econ_newconcepts_Q, econ_opinion_A4
+[2025-08-21 23:59:50] checkTranslationKeys executed successfully.
+[2025-08-22 00:01:05] Starting landmanagers app.R execution.
+[2025-08-22 00:01:05] Attempting to load translations from landmanagers_translations.csv
+[2025-08-22 00:01:05] Translations loaded. Dimensions: 423x4
+[2025-08-22 00:01:05] First few rows of translations:
+           unique_ID
+1 title_land_manager
+2          nav_start
+3           nav_back
+4           nav_next
+5                yes
+6                 no
+                                                                 French
+1 Etude dédiée aux acteurs de l'immobilier et de la gestion du foncier.
+2                                                             Commencer
+3                                                                Retour
+4                                                               Suivant
+5                                                                   OUI
+6                                                                   NON
+                                                                English
+1 Etude dédiée aux acteurs de l'immobilier et de la gestion du foncier.
+2                                                             Commencer
+3                                                                Retour
+4                                                               Suivant
+5                                                                   OUI
+6                                                                   NON
+                                                                Spanish
+1 Etude dédiée aux acteurs de l'immobilier et de la gestion du foncier.
+2                                                             Commencer
+3                                                                Retour
+4                                                               Suivant
+5                                                                   OUI
+6                                                                   NON
+[2025-08-22 00:01:05] used_translation_keys before checkTranslationKeys: title_farmers, nav_start, nav_back, nav_next, page0_intro_header, page0_intro_text, consent_text, missing_supply_newconcepts, missing_supply_approach, missing_supply_opinion, econ_newconcepts_Q, econ_opinion_A4
+[2025-08-22 00:01:05] checkTranslationKeys executed successfully.
+[2025-08-22 00:14:06] Starting landmanagers app.R execution.
+[2025-08-22 00:14:06] Attempting to load translations from landmanagers_translations.csv
+[2025-08-22 00:14:06] Translations loaded. Dimensions: 423x4
+[2025-08-22 00:14:06] First few rows of translations:
+           unique_ID
+1 title_land_manager
+2          nav_start
+3           nav_back
+4           nav_next
+5                yes
+6                 no
+                                                                 French
+1 Etude dédiée aux acteurs de l'immobilier et de la gestion du foncier.
+2                                                             Commencer
+3                                                                Retour
+4                                                               Suivant
+5                                                                   OUI
+6                                                                   NON
+                                                                English
+1 Etude dédiée aux acteurs de l'immobilier et de la gestion du foncier.
+2                                                             Commencer
+3                                                                Retour
+4                                                               Suivant
+5                                                                   OUI
+6                                                                   NON
+                                                                Spanish
+1 Etude dédiée aux acteurs de l'immobilier et de la gestion du foncier.
+2                                                             Commencer
+3                                                                Retour
+4                                                               Suivant
+5                                                                   OUI
+6                                                                   NON
+[2025-08-22 00:14:07] used_translation_keys before checkTranslationKeys: title_farmers, nav_start, nav_back, nav_next, page0_intro_header, page0_intro_text, consent_text, missing_supply_newconcepts, missing_supply_approach, missing_supply_opinion, econ_newconcepts_Q, econ_opinion_A4
+[2025-08-22 00:14:07] checkTranslationKeys executed successfully.
+[2025-08-22 00:16:39] Starting landmanagers app.R execution.
+[2025-08-22 00:16:39] Attempting to load translations from landmanagers_translations.csv
+[2025-08-22 00:16:39] Translations loaded. Dimensions: 423x4
+[2025-08-22 00:16:39] First few rows of translations:
+           unique_ID
+1 title_land_manager
+2          nav_start
+3           nav_back
+4           nav_next
+5                yes
+6                 no
+                                                                 French
+1 Etude dédiée aux acteurs de l'immobilier et de la gestion du foncier.
+2                                                             Commencer
+3                                                                Retour
+4                                                               Suivant
+5                                                                   OUI
+6                                                                   NON
+                                                                English
+1 Etude dédiée aux acteurs de l'immobilier et de la gestion du foncier.
+2                                                             Commencer
+3                                                                Retour
+4                                                               Suivant
+5                                                                   OUI
+6                                                                   NON
+                                                                Spanish
+1 Etude dédiée aux acteurs de l'immobilier et de la gestion du foncier.
+2                                                             Commencer
+3                                                                Retour
+4                                                               Suivant
+5                                                                   OUI
+6                                                                   NON
+[2025-08-22 00:16:39] used_translation_keys before checkTranslationKeys: title_farmers, nav_start, nav_back, nav_next, page0_intro_header, page0_intro_text, consent_text, missing_supply_newconcepts, missing_supply_approach, missing_supply_opinion, econ_newconcepts_Q, econ_opinion_A4
+[2025-08-22 00:16:39] checkTranslationKeys executed successfully.
+[2025-08-22 00:20:51] Starting landmanagers app.R execution.
+[2025-08-22 00:20:51] Attempting to load translations from landmanagers_translations.csv
+[2025-08-22 00:20:51] Translations loaded. Dimensions: 423x4
+[2025-08-22 00:20:51] First few rows of translations:
+           unique_ID
+1 title_land_manager
+2          nav_start
+3           nav_back
+4           nav_next
+5                yes
+6                 no
+                                                                 French
+1 Etude dédiée aux acteurs de l'immobilier et de la gestion du foncier.
+2                                                             Commencer
+3                                                                Retour
+4                                                               Suivant
+5                                                                   OUI
+6                                                                   NON
+                                                                English
+1 Etude dédiée aux acteurs de l'immobilier et de la gestion du foncier.
+2                                                             Commencer
+3                                                                Retour
+4                                                               Suivant
+5                                                                   OUI
+6                                                                   NON
+                                                                Spanish
+1 Etude dédiée aux acteurs de l'immobilier et de la gestion du foncier.
+2                                                             Commencer
+3                                                                Retour
+4                                                               Suivant
+5                                                                   OUI
+6                                                                   NON
+[2025-08-22 00:20:52] used_translation_keys before checkTranslationKeys: title_farmers, nav_start, nav_back, nav_next, page0_intro_header, page0_intro_text, consent_text, missing_supply_newconcepts, missing_supply_approach, missing_supply_opinion, econ_newconcepts_Q, econ_opinion_A4
+[2025-08-22 00:20:52] checkTranslationKeys executed successfully.
+[2025-08-22 00:26:48] Starting landmanagers app.R execution.
+[2025-08-22 00:26:48] Attempting to load translations from landmanagers_translations.csv
+[2025-08-22 00:26:48] Translations loaded. Dimensions: 423x4
+[2025-08-22 00:26:48] First few rows of translations:
+           unique_ID
+1 title_land_manager
+2          nav_start
+3           nav_back
+4           nav_next
+5                yes
+6                 no
+                                                                 French
+1 Etude dédiée aux acteurs de l'immobilier et de la gestion du foncier.
+2                                                             Commencer
+3                                                                Retour
+4                                                               Suivant
+5                                                                   OUI
+6                                                                   NON
+                                                                English
+1 Etude dédiée aux acteurs de l'immobilier et de la gestion du foncier.
+2                                                             Commencer
+3                                                                Retour
+4                                                               Suivant
+5                                                                   OUI
+6                                                                   NON
+                                                                Spanish
+1 Etude dédiée aux acteurs de l'immobilier et de la gestion du foncier.
+2                                                             Commencer
+3                                                                Retour
+4                                                               Suivant
+5                                                                   OUI
+6                                                                   NON
+[2025-08-22 00:26:48] used_translation_keys before checkTranslationKeys: title_farmers, nav_start, nav_back, nav_next, page0_intro_header, page0_intro_text, consent_text, missing_supply_newconcepts, missing_supply_approach, missing_supply_opinion, econ_newconcepts_Q, econ_opinion_A4
+[2025-08-22 00:26:48] checkTranslationKeys executed successfully.
+[2025-08-22 00:31:53] Starting landmanagers app.R execution.
+[2025-08-22 00:31:53] Attempting to load translations from landmanagers_translations.csv
+[2025-08-22 00:31:53] Translations loaded. Dimensions: 423x4
+[2025-08-22 00:31:53] First few rows of translations:
+           unique_ID
+1 title_land_manager
+2          nav_start
+3           nav_back
+4           nav_next
+5                yes
+6                 no
+                                                                 French
+1 Etude dédiée aux acteurs de l'immobilier et de la gestion du foncier.
+2                                                             Commencer
+3                                                                Retour
+4                                                               Suivant
+5                                                                   OUI
+6                                                                   NON
+                                                                English
+1 Etude dédiée aux acteurs de l'immobilier et de la gestion du foncier.
+2                                                             Commencer
+3                                                                Retour
+4                                                               Suivant
+5                                                                   OUI
+6                                                                   NON
+                                                                Spanish
+1 Etude dédiée aux acteurs de l'immobilier et de la gestion du foncier.
+2                                                             Commencer
+3                                                                Retour
+4                                                               Suivant
+5                                                                   OUI
+6                                                                   NON
+[2025-08-22 00:31:53] Class of translations$unique_ID: character
+[2025-08-22 00:31:53] t() called for key: nav_start, lang: French
+[2025-08-22 00:31:53] t() result for key nav_start: Commencer
+[2025-08-22 00:31:55] t() called for key: disconnected_alert, lang: French
+[2025-08-22 00:31:55] t() result for key disconnected_alert: [[disconnected_alert]]
+[2025-08-22 00:31:55] t() called for key: landmanagers_intro_header, lang: French
+[2025-08-22 00:31:55] t() result for key landmanagers_intro_header: [[landmanagers_intro_header]]
+[2025-08-22 00:31:55] t() called for key: landmanagers_intro_text, lang: French
+[2025-08-22 00:31:55] t() result for key landmanagers_intro_text: [[landmanagers_intro_text]]
+[2025-08-22 00:31:55] t() called for key: consent_text, lang: French
+[2025-08-22 00:31:55] t() result for key consent_text: Dans le cadre de cette étude, nous vous informons que : Aucune donnée personnelle (nom, prénom, adresse e-mail, adresse IP, etc.) ne sera collectée de manière obligatoire. Si vous choisissez de renseigner votre adresse e-mail afin d’être recontacté(e) pour le suivi de l’étude, cela reste entièrement facultatif et repose sur votre consentement libre et éclairé. Toutes les réponses fournies dans ce questionnaire sont strictement anonymes. Votre participation est libre, volontaire et sans aucune obligation. Vous avez le droit de refuser de participer ou de vous retirer de cette étude à tout moment, sans avoir à vous justifier et sans aucune conséquence. Vous avez également le droit d’être informé(e) sur les objectifs de l’étude et l’utilisation des données recueillies. Aucun identifiant personnel ni information technique (comme l’adresse IP) ne sera collecté. Les données recueillies sont hébergées sur des serveurs conformes au RGPD. Les données recueillies dans le cadre de cette étude sont strictement anonymisées. Elles pourront être conservées pendant une durée maximale de 5 ans après la fin de l’étude, exclusivement à des fins d’analyse, de vérification des résultats et d’archivage scientifique, conformément aux recommandations de la CNIL. Vos réponses aux questions posées sont exploitées par l’équipe de l’étude du laboratoire Equipe Sécurité Défense Renseignement (ESDR3C) du CNAM de Paris et son partenaire (l’Université de Sydney, laboratoire Sécurisation des sols (soil security). Merci de contribuer à cette recherche J’ai lu et compris les renseignements fournis dans la fiche d’informations et j’accepte de plein gré de participer à cette recherche.
+[2025-08-22 00:31:55] t() called for key: nav_start, lang: French
+[2025-08-22 00:31:55] t() result for key nav_start: Commencer
+[2025-08-22 00:36:34] Starting landmanagers app.R execution.
+[2025-08-22 00:36:34] Attempting to load translations from landmanagers_translations.csv
+[2025-08-22 00:36:34] Translations loaded. Dimensions: 15x4
+[2025-08-22 00:36:34] First few rows of translations:
+                  unique_ID
+1 landmanagers_intro_header
+2   landmanagers_intro_text
+3 landmanagers_page1_header
+4   landmanagers_page1_text
+5   landmanagers_end_header
+6     landmanagers_end_text
+                                                                                                     French
+1                                                  Bienvenue dans l'application des gestionnaires de terres
+2 Cette application est conçue pour les gestionnaires de terres. Plus de contenu sera ajouté prochainement.
+3                                                                   Page 1 pour les gestionnaires de terres
+4                              Ceci est la première page de contenu spécifique aux gestionnaires de terres.
+5                                                          Fin de l'application des gestionnaires de terres
+6                                                                  Merci d'avoir utilisé cette application.
+                                                                           English
+1                                         Welcome to the Land Managers Application
+2 This application is designed for land managers. More content will be added soon.
+3                                                         Page 1 for Land Managers
+4                        This is the first content page specific to land managers.
+5                                                 End of Land Managers Application
+6                                            Thank you for using this application.
+                                                                                   Spanish
+1                                      Bienvenido a la aplicación para gestores de tierras
+2 Esta aplicación está diseñada para gestores de tierras. Pronto se añadirá más contenido.
+3                                                        Página 1 para gestores de tierras
+4              Esta es la primera página de contenido específica para gestores de tierras.
+5                                            Fin de la aplicación para gestores de tierras
+6                                                        Gracias por usar esta aplicación.
+[2025-08-22 00:36:34] Class of translations$unique_ID: character
+[2025-08-22 00:36:34] t() called for key: nav_start, lang: French
+[2025-08-22 00:36:34] t() result for key nav_start: Commencer
+[2025-08-22 00:36:38] t() called for key: disconnected_alert, lang: French
+[2025-08-22 00:36:38] t() result for key disconnected_alert: La connexion a été perdue. Veuillez vérifier votre connexion Internet et réessayer.
+[2025-08-22 00:36:38] t() called for key: landmanagers_intro_header, lang: French
+[2025-08-22 00:36:38] t() result for key landmanagers_intro_header: Bienvenue dans l'application des gestionnaires de terres
+[2025-08-22 00:36:38] t() called for key: landmanagers_intro_text, lang: French
+[2025-08-22 00:36:38] t() result for key landmanagers_intro_text: Cette application est conçue pour les gestionnaires de terres. Plus de contenu sera ajouté prochainement.
+[2025-08-22 00:36:38] t() called for key: consent_text, lang: French
+[2025-08-22 00:36:38] t() result for key consent_text: J'accepte les termes et conditions.
+[2025-08-22 00:36:38] t() called for key: nav_start, lang: French
+[2025-08-22 00:36:38] t() result for key nav_start: Commencer
+[2025-08-22 00:49:44] Starting landmanagers app.R execution.
+[2025-08-22 00:49:44] Attempting to load translations from landmanagers_translations.csv
+[2025-08-22 00:49:44] Translations loaded. Dimensions: 423x4
+[2025-08-22 00:49:44] First few rows of translations:
+           unique_ID
+1 title_land_manager
+2          nav_start
+3           nav_back
+4           nav_next
+5                yes
+6                 no
+                                                                 French
+1 Etude dédiée aux acteurs de l'immobilier et de la gestion du foncier.
+2                                                             Commencer
+3                                                                Retour
+4                                                               Suivant
+5                                                                   OUI
+6                                                                   NON
+                                                                English
+1 Etude dédiée aux acteurs de l'immobilier et de la gestion du foncier.
+2                                                             Commencer
+3                                                                Retour
+4                                                               Suivant
+5                                                                   OUI
+6                                                                   NON
+                                                                Spanish
+1 Etude dédiée aux acteurs de l'immobilier et de la gestion du foncier.
+2                                                             Commencer
+3                                                                Retour
+4                                                               Suivant
+5                                                                   OUI
+6                                                                   NON
+[2025-08-22 00:49:44] Class of translations$unique_ID: character
+[2025-08-22 00:49:45] t() called for key: nav_start, lang: French
+[2025-08-22 00:49:45] t() result for key nav_start: Commencer
+[2025-08-22 00:49:49] t() called for key: disconnected_alert, lang: French
+[2025-08-22 00:49:49] t() result for key disconnected_alert: [[disconnected_alert]]
+[2025-08-22 00:49:49] t() called for key: page0_intro_header, lang: French
+[2025-08-22 00:49:49] t() result for key page0_intro_header: [[page0_intro_header]]
+[2025-08-22 00:49:49] t() called for key: page0_intro_text, lang: French
+[2025-08-22 00:49:49] t() result for key page0_intro_text: [[page0_intro_text]]
+[2025-08-22 00:49:49] t() called for key: consent_text, lang: French
+[2025-08-22 00:49:49] t() result for key consent_text: Dans le cadre de cette étude, nous vous informons que : Aucune donnée personnelle (nom, prénom, adresse e-mail, adresse IP, etc.) ne sera collectée de manière obligatoire. Si vous choisissez de renseigner votre adresse e-mail afin d’être recontacté(e) pour le suivi de l’étude, cela reste entièrement facultatif et repose sur votre consentement libre et éclairé. Toutes les réponses fournies dans ce questionnaire sont strictement anonymes. Votre participation est libre, volontaire et sans aucune obligation. Vous avez le droit de refuser de participer ou de vous retirer de cette étude à tout moment, sans avoir à vous justifier et sans aucune conséquence. Vous avez également le droit d’être informé(e) sur les objectifs de l’étude et l’utilisation des données recueillies. Aucun identifiant personnel ni information technique (comme l’adresse IP) ne sera collecté. Les données recueillies sont hébergées sur des serveurs conformes au RGPD. Les données recueillies dans le cadre de cette étude sont strictement anonymisées. Elles pourront être conservées pendant une durée maximale de 5 ans après la fin de l’étude, exclusivement à des fins d’analyse, de vérification des résultats et d’archivage scientifique, conformément aux recommandations de la CNIL. Vos réponses aux questions posées sont exploitées par l’équipe de l’étude du laboratoire Equipe Sécurité Défense Renseignement (ESDR3C) du CNAM de Paris et son partenaire (l’Université de Sydney, laboratoire Sécurisation des sols (soil security). Merci de contribuer à cette recherche J’ai lu et compris les renseignements fournis dans la fiche d’informations et j’accepte de plein gré de participer à cette recherche.
+[2025-08-22 00:49:49] t() called for key: nav_start, lang: French
+[2025-08-22 00:49:49] t() result for key nav_start: Commencer

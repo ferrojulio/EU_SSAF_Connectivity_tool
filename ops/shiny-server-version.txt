@@ -1,0 +1,2 @@
+Shiny Server v1.5.23.1030
+Node.js v20.17.0

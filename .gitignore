@@ -1,5 +1,11 @@
 *.sqlite
-*.rds
 event_log.txt
 .Rproj.user
 *.png
+renv/
+log.txt
+farmers.log
+tmp_git/
+.RData
+.Rhistory
+.Rprofile

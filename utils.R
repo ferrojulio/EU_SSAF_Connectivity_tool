@@ -1,5 +1,4 @@
-
-# 
+#
 # utils.R — Shared utilities ####
 # These are functions needed across all 
 
@@ -10,17 +9,45 @@ library(sf)
 library(stringi)
 library(readr)
 
-commune_centroids <- readRDS("/srv/shiny-server/all_gadm41_centroids_level2.rds")
+
+#
+`%||%` <- function(a, b) { if (is.null(a) || (is.character(a) && length(a)==0) || identical(a, "")) b else a }
+
+is_true  <- function(x) isTRUE(x)                             # safe TRUE test
+nzchr    <- function(x) nzchar(x %||% "")                     # non-empty string
+len      <- function(x) if (is.null(x)) 0L else length(x)     # safe length
 
 
-commune_centroids[] <- lapply(commune_centroids, function(x) {
-  if (is.character(x)) iconv(x, from = "latin1", to = "UTF-8") else x
-})
+
+
+connect_to_db <- function(mode = "online") {
+  tryCatch({
+    if (identical(mode, "online")) {
+      DBI::dbConnect(RPostgres::Postgres(),
+        host = host, port = port, user = user, password = password,
+        dbname = dbname, options = "-c search_path=public")
+    } else {
+      DBI::dbConnect(RSQLite::SQLite(), "TestDatabase.sqlite")
+    }
+  }, error = function(e) {
+    message("❌ DB connection failed: ", e$message)
+    NULL
+  })
+}
+
+
+
 
 #Translations ####
 
-t_original <- function(key, lang = "French", translations_df = NULL) {
-  if (is.null(translations_df)) return(paste0("[[", key, "]]"))
+t_original <- function(key, lang = "French") { # Removed translations_df argument
+  # Access translations from the global environment
+  if (!exists("translations", envir = .GlobalEnv)) {
+    message("⚠️ Global 'translations' object not found for key: ", key)
+    return(paste0("[[", key, "]]"))
+  }
+  
+  translations_df <- get("translations", envir = .GlobalEnv)
 
   lang <- if (lang %in% colnames(translations_df)) lang else "English"
   row <- which(translations_df$unique_ID == key)[1]
@@ -50,41 +77,9 @@ used_translation_keys <- c(
 )
 
 
-# 
+#
 # UI COMPONENTS ####
-# 
-`%||%` <- function(a, b) if (!is.null(a)) a else b
 
-# 
-## SERVER OBSERVER FOR REGION ####
-observeRegionSelection <- function(input, output, session, lang) {
-  output$region_ui <- renderUI({
-    req(input$country)
-    regions <- sort(unique(commune_centroids$region2[commune_centroids$country == input$country]))
-    selectInput("region2", t("select_commune", lang), choices = regions, selected = NULL)
-  })
-}
-
-## Country and Region selection UI ####
-countryRegionUI <- function(id_prefix = "") {
-  tagList(
-    selectInput(paste0(id_prefix, "country"), "Pays :",
-                choices = sort(unique(commune_centroids$country)), selected = NULL),
-    uiOutput(paste0(id_prefix, "region_ui"))
-  )
-}
-
-
-
-renderMiniMap <- function(input) {
-  lat <- input$soilMap_click$lat %||% 48.8566
-  lng <- input$soilMap_click$lng %||% 2.3522
-  
-  leaflet() %>%
-    addProviderTiles("Esri.WorldImagery") %>%
-    addMarkers(lng, lat) %>%
-    setView(lng, lat, zoom = 20)
-}
 
 
 
@@ -97,8 +92,7 @@ clearLocalStorageInputs <- function(session, input_ids) {
 
 ###knowledge Q####
 exclusiveCheckboxScript <- function(inputId, exclusiveValue) {
-  script <- sprintf('
-  
+  script <- sprintf('  
     $(document).on("click", "input[type=checkbox][value=\'%s\']", function() {
       if ($(this).is(":checked")) {
         $("input[type=checkbox][name=\'%s\']").each(function(){
@@ -120,9 +114,9 @@ exclusiveCheckboxScript <- function(inputId, exclusiveValue) {
 }
 
 
-# 
+#
 # UTILITY FUNCTIONS ####
-# 
+#
 
 # Generate unique session ID 
 generateUserID <- function() {
@@ -143,7 +137,7 @@ textInput2 <- function(inputId, label, value = "", width = NULL, placeholder = N
 is_valid_text <- function(x, lang = "French", maxlen = 350) {
   if (!is.character(x)) return(FALSE)
   x <- iconv(x, from = "", to = "UTF-8")  # handles odd encodings from UI
-  pattern <- "^[\\p{L}\\p{Z}\\p{M}'-]+$"
+  pattern <- "^[\\p{L}\\p{Z}\\p{M}'-]+$"  
   
   is_valid <- !is.null(x) &&
     nchar(x, allowNA = TRUE) <= maxlen &&
@@ -177,14 +171,14 @@ Sanitize <- function(text) {
   return(text)
 }
 
-# 
+#
 ## UI Progress Bar (Bootstrap style)####
-# 
+#
 
 progressBar <- function(id, value, total = NULL, display_pct = FALSE, size = NULL,
                         status = NULL, striped = FALSE, title = NULL,
-                        range_value = NULL, commas = TRUE, unit_mark = "%") {
-
+                        range_value = NULL, commas = TRUE, unit_mark = "%" ) {
+  
   if (!is.null(total)) {
     percent <- round(value / total * 100)
   } else {
@@ -193,10 +187,10 @@ progressBar <- function(id, value, total = NULL, display_pct = FALSE, size = NUL
       scales::rescale(value, from = range_value, to = c(0, 100))
     } else value
   }
-
+  
   value_display <- value
   total_display <- total
-
+  
   if (!is.null(total)) {
     total <- tags$span(
       class = "progress-number",
@@ -205,7 +199,7 @@ progressBar <- function(id, value, total = NULL, display_pct = FALSE, size = NUL
       tags$span(id = paste0(id, "-total"), total_display)
     )
   }
-
+  
   tagPB <- tags$div(
     class = "progress-group",
     title, total,
@@ -222,14 +216,14 @@ progressBar <- function(id, value, total = NULL, display_pct = FALSE, size = NUL
       )
     )
   )
-
+  
   tagList(
     singleton(tags$head(tags$style(".progress-number {position: absolute; right: 200px;}"))),
     tagPB
   )
 }
 
-# 
+#
 # Optional: Log event to text file (can be removed if not needed) ####
 # 
 
@@ -237,4 +231,39 @@ log_event <- function(message, file = "event_log.txt") {
   timestamp <- format(Sys.time(), "%Y-%m-%d %H:%M:%S")
   line <- paste0("[", timestamp, "] ", message, "\n")
   cat(line, file = file, append = TRUE)
+}
+
+.t_global <- NULL
+set_t_function <- function(tf) { .t_global <<- tf }
+
+
+renderTranslatedCheckbox <- function(
+  id, label_key, value_choices, label_keys, lang, current_input, session, ...
+) {
+  dots   <- list(...)
+  t_func <- if (!is.null(dots$t_func)) dots$t_func else .t_global
+  if (is.null(t_func)) {
+    t_func <- function(key, lang) paste0("[[", key, "]]")  # safe fallback
+  }
+
+  label <- tryCatch(t_func(label_key, lang), error = function(e) paste0("[[", label_key, "]]"))
+
+  choices <- tryCatch({
+    setNames(
+      value_choices,
+      vapply(label_keys, function(k) {
+        tryCatch(t_func(k, lang), error = function(e) paste0("[[", k, "]]"))
+      }, character(1))
+    )
+  }, error = function(e) {
+    message("❌ setNames failed in ", id, ": ", e$message)
+    setNames(value_choices, value_choices) 
+  })
+
+  checkboxGroupInput(
+    id,
+    label = label,
+    choices = choices,
+    selected = current_input %||% character(0)
+  )
 }

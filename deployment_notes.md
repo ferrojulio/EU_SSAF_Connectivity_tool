@@ -41,16 +41,17 @@ server {
 
   * `/srv/shiny-server/index/` → main landing app
   * `/srv/shiny-server/farmers/` → farmer-specific app
-  * Land managers and policymakers folders are structured but not yet live.
+  * `/srv/shiny-server/policymakers/` → policymakers-specific app
+  * `/srv/shiny-server/landmanagers/` → landmanagers-specific app (placeholder)
 
 ## Project Files
 
 * Project root contains:
 
-  * `index/` and `farmers/` folders
-  * `utils.R` shared by all apps
-  * `all_gadm41_centroids_level2.rds` (used by `utils.R`)
-* Each app has its own translations `.rds` file and `www/app.css` for custom styles. but they are copies of the same.
+  * `index/`, `farmers/`, `policymakers/`, `landmanagers/` folders
+  * `utils.R`, `shared_app_components.R`, `global.R` shared by all apps
+  * `all_gadm41_centroids_level2.rds` (used by `global.R`)
+* Each app has its own translations file and `www/app.css` for custom styles.
 
 ## SSL/TLS Certificates
 
@@ -74,19 +75,18 @@ server {
 
 ```
 DBI, dplyr, htmltools, htmlwidgets, leaflet, readr, RPostgres,
-RSQLite, scales, sf, shiny, stringi
+RSQLite, scales, sf, shiny, stringi, readxl
 ```
 
 ## Troubleshooting Tips
 
 * 500 Internal Server Error → check `/var/log/shiny-server/*.log`
-* `translations` object not found → ensure `.rds` is loaded early enough in `app.R`
+* `translations` object not found → ensure `translations <<-` is used to assign to the global environment.
 * Use `sudo su - shiny -s /bin/bash` to test R as the `shiny` user
 * Use `curl -I http://127.0.0.1:3838/<app>` to verify local port is working
 
 ## To Do
 
-* Enable `robots.txt` and sitemap if SEO is needed
 * Add Uptime monitoring (e.g., UptimeRobot)
 * Finalise DNS + Certbot wildcard setup if desired
 * Improve LCP / performance on Chrome
