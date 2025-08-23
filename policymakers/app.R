@@ -358,7 +358,7 @@ server <- function(input, output, session) {
     }
   })
   observeEvent(input$btnStart, {
-    lang <- isolate(input$lang %||% "French")
+    lang <- input$lang %||% "French"
     if (!isTRUE(input$consent)) {
       showNotification(t("missing_consent", lang), type = "error", duration = 5)
       return()
@@ -379,7 +379,7 @@ server <- function(input, output, session) {
   
   
   observeEvent(currentPage(), {
-    lang <- isolate(input$lang %||% "French")
+    lang <- input$lang %||% "French"
 
     # Logic for redirecting to page 0 if session is invalid
     if (currentPage() != 0 && (is.null(session_token()) || session_token() == "")) {
@@ -487,7 +487,7 @@ server <- function(input, output, session) {
   # ---- Mapping Page state ----
   
   observeEvent(currentPage(), {
-    lang <- isolate(input$lang %||% "French")
+    lang <- input$lang %||% "French"
     
     # Reset location when user changes page or country/region
     if (currentPage() != 7) {
@@ -560,7 +560,7 @@ server <- function(input, output, session) {
   
   
   observeEvent(input$soilMap_new_click, {
-    lang <- isolate(input$lang %||% "French")
+    lang <- input$lang %||% "French"
     
     click <- input$soilMap_new_click
     if (!is.null(click$lat) && !is.null(click$lng)) {
@@ -573,7 +573,7 @@ server <- function(input, output, session) {
   })
   
   observeEvent(input$region2, {
-    lang <- isolate(input$lang %||% "French")
+    lang <- input$lang %||% "French"
     
     req(input$country, input$region1, input$region2)
     commune_centroids <- commune_centroids_reactive()
@@ -630,7 +630,7 @@ server <- function(input, output, session) {
     
     #Page 0: Language and Consent #### 
     if (p == 0) {
-      lang <- isolate(input$lang %||% "French")
+      lang <- input$lang %||% "French"
       
       return(
         fluidPage(
@@ -663,7 +663,7 @@ server <- function(input, output, session) {
       
       ## PAGE 1: PRESENTATION #############################
     } else if(p == 1){
-      lang <- isolate(input$lang %||% "French")
+      lang <- input$lang %||% "French"
       
       fluidPage(
         h3(t("PRESENTATION_header", input$lang)),
@@ -2103,7 +2103,7 @@ outputOptions(output, "soilServiceRankingUI", suspendWhenHidden = FALSE)
   
   observeEvent(input$btnStart, {
     req(input$consent)
-    lang <- isolate(input$lang %||% "French")
+    lang <- input$lang %||% "French"
     
     # If session_token is not set (meaning not restored from local storage), generate a new one
     if (is.null(session_token())) {
@@ -2148,7 +2148,7 @@ outputOptions(output, "soilServiceRankingUI", suspendWhenHidden = FALSE)
   
   
   observeEvent(input$PRESENTATION_Next, {
-    lang <- isolate(input$lang %||% "French")
+    lang <- input$lang %||% "French"
     
     # Validate token
     token <- session_token()
@@ -2195,12 +2195,12 @@ outputOptions(output, "soilServiceRankingUI", suspendWhenHidden = FALSE)
   ###page Supply #####
   
   observeEvent(input$Supply_Back, {
-    lang <- isolate(input$lang %||% "French")
+    lang <- input$lang %||% "French"
     currentPage(1)
   })
   
   observeEvent(input$Supply_Next, {
-    lang <- isolate(input$lang %||% "French")
+    lang <- input$lang %||% "French"
     
     # Optional validation: make sure something is selected (or warn)
     if (is.null(input$supply_newconcepts) || length(input$supply_newconcepts) == 0) {
@@ -2240,12 +2240,12 @@ outputOptions(output, "soilServiceRankingUI", suspendWhenHidden = FALSE)
   
   ###page food #####
   observeEvent(input$food_Back, {
-    lang <- isolate(input$lang %||% "French")
+    lang <- input$lang %||% "French"
     currentPage(2)
   })
   
   observeEvent(input$food_Next, {
-    lang <- isolate(input$lang %||% "French")
+    lang <- input$lang %||% "French"
     
     if (is.null(input$food_newconcepts) || length(input$food_newconcepts) == 0) {
       showNotification(t("missing_newconcepts", lang), type = "error")
@@ -2284,7 +2284,7 @@ outputOptions(output, "soilServiceRankingUI", suspendWhenHidden = FALSE)
   
   ###page econ #####
   observeEvent(input$econ_Next, {
-    lang <- isolate(input$lang %||% "French")
+    lang <- input$lang %||% "French"
     
     if (is.null(input$econ_newconcepts) || length(input$econ_newconcepts) == 0) {
       showNotification(t("missing_newconcepts", lang), type = "error")
@@ -2321,13 +2321,13 @@ outputOptions(output, "soilServiceRankingUI", suspendWhenHidden = FALSE)
   })
   
   observeEvent(input$econ_Back, {
-    lang <- isolate(input$lang %||% "French")
+    lang <- input$lang %||% "French"
     currentPage(3)
   })
   
   ###Page intSec ####
   observeEvent(input$intSec_Next, {
-    lang <- isolate(input$lang %||% "French")
+    lang <- input$lang %||% "French"
     
     if (is.null(input$intSec_newconcepts) || length(input$intSec_newconcepts) == 0) {
       showNotification(t("missing_newconcepts", lang), type = "error")
@@ -2372,14 +2372,14 @@ outputOptions(output, "soilServiceRankingUI", suspendWhenHidden = FALSE)
   })
   
   observeEvent(input$intSec_Back, {
-    lang <- isolate(input$lang %||% "French")
+    lang <- input$lang %||% "French"
     currentPage(4)
   })
   
   
   ### defense ####
   observeEvent(input$defense_Next, {
-    lang <- isolate(input$lang %||% "French")
+    lang <- input$lang %||% "French"
     
     if (is.null(input$defense_newconcepts) || length(input$defense_newconcepts) == 0) {
       showNotification(t("missing_newconcepts", lang), type = "error")
@@ -2423,7 +2423,7 @@ outputOptions(output, "soilServiceRankingUI", suspendWhenHidden = FALSE)
   })
   
   observeEvent(input$defense_Back, {
-    lang <- isolate(input$lang %||% "French")
+    lang <- input$lang %||% "French"
     currentPage(5)
   })
   
@@ -2433,12 +2433,12 @@ outputOptions(output, "soilServiceRankingUI", suspendWhenHidden = FALSE)
   ###Map Page ####
   ###
   observeEvent(input$map_Back, {
-    lang <- isolate(input$lang %||% "French")
+    lang <- input$lang %||% "French"
     currentPage(6)
   })
   
   observeEvent(input$map_Next, {
-    lang <- isolate(input$lang %||% "French")
+    lang <- input$lang %||% "French"
     
     if (is.null(input$country) || input$country == "") {
       showNotification(t("missing_country", lang), type = "error")
@@ -2486,7 +2486,7 @@ outputOptions(output, "soilServiceRankingUI", suspendWhenHidden = FALSE)
   
   ### Page Erosion ####
   observeEvent(input$erosion_Next, {
-    lang <- isolate(input$lang %||% "French")
+    lang <- input$lang %||% "French"
     
     if (is.null(input$E_K) || length(input$E_K) == 0) {
       showNotification(t("missing_newconcepts", lang), type = "error")
@@ -2522,13 +2522,13 @@ outputOptions(output, "soilServiceRankingUI", suspendWhenHidden = FALSE)
   })
   
   observeEvent(input$erosion_Back, {
-    lang <- isolate(input$lang %||% "French")
+    lang <- input$lang %||% "French"
     currentPage(7)
   })
   
   ### Page Acidification ####
   observeEvent(input$acid_Next, {
-    lang <- isolate(input$lang %||% "French")
+    lang <- input$lang %||% "French"
     
     if (is.null(input$A_K) || length(input$A_K) == 0) {
       showNotification(t("missing_newconcepts", lang), type = "error")
@@ -2565,7 +2565,7 @@ outputOptions(output, "soilServiceRankingUI", suspendWhenHidden = FALSE)
   })
   
   observeEvent(input$acid_Back, {
-    lang <- isolate(input$lang %||% "French")
+    lang <- input$lang %||% "French"
     currentPage(8)
   })
   
@@ -2573,12 +2573,12 @@ outputOptions(output, "soilServiceRankingUI", suspendWhenHidden = FALSE)
   ### Page Soil Structure ####
   # Navigation and validation
   observeEvent(input$sd_Back, {
-    lang <- isolate(input$lang %||% "French")
+    lang <- input$lang %||% "French"
     currentPage(9)
   })
   
   observeEvent(input$sd_Next, {
-    lang <- isolate(input$lang %||% "French")
+    lang <- input$lang %||% "French"
     if (is.null(input$SD_K) || length(input$SD_K) == 0) {
       showNotification(t("missing_newconcepts", lang), type = "error")
       return()
@@ -2614,7 +2614,7 @@ outputOptions(output, "soilServiceRankingUI", suspendWhenHidden = FALSE)
   ###Sal inisation Page ####
   #
   observeEvent(input$sal_Next, {
-    lang <- isolate(input$lang %||% "French")
+    lang <- input$lang %||% "French"
     
     if (is.null(input$S_K) || length(input$S_K) == 0) {
       showNotification(t("missing_newconcepts", lang), type = "error")
@@ -2647,14 +2647,14 @@ outputOptions(output, "soilServiceRankingUI", suspendWhenHidden = FALSE)
   
   
   observeEvent(input$sal_Back, {
-    lang <- isolate(input$lang %||% "French")
+    lang <- input$lang %||% "French"
     currentPage(10)
   })
   
   
   ### Biodiversity Page ####
   observeEvent(input$bio_Next, {
-    lang <- isolate(input$lang %||% "French")
+    lang <- input$lang %||% "French"
     
     if (is.null(input$HL_K) || length(input$HL_K) == 0) {
       showNotification(t("missing_newconcepts", lang), type = "error")
@@ -2691,7 +2691,7 @@ outputOptions(output, "soilServiceRankingUI", suspendWhenHidden = FALSE)
   })
   
   observeEvent(input$bio_Back, {
-    lang <- isolate(input$lang %||% "French")
+    lang <- input$lang %||% "French"
     currentPage(11)
   })
   
@@ -2699,7 +2699,7 @@ outputOptions(output, "soilServiceRankingUI", suspendWhenHidden = FALSE)
   
   ### Fert Page ####
   observeEvent(input$nm_Next, {
-    lang <- isolate(input$lang %||% "French")
+    lang <- input$lang %||% "French"
     
     if (is.null(input$NM_K) || length(input$NM_K) == 0) {
       showNotification(t("missing_newconcepts", lang), type = "error")
@@ -2738,14 +2738,14 @@ outputOptions(output, "soilServiceRankingUI", suspendWhenHidden = FALSE)
   
   
   observeEvent(input$nm_Back, {
-    lang <- isolate(input$lang %||% "French")
+    lang <- input$lang %||% "French"
     currentPage(12)
   })
   
   ### Water Management Page ####
   
   observeEvent(input$sw_Next, {
-    lang <- isolate(input$lang %||% "French")
+    lang <- input$lang %||% "French"
     
     if (is.null(input$SW_K) || length(input$SW_K) == 0) {
       showNotification(t("missing_newconcepts", lang), type = "error")
@@ -2782,7 +2782,7 @@ outputOptions(output, "soilServiceRankingUI", suspendWhenHidden = FALSE)
   
   ### Carbon Page ####
   observeEvent(input$dc_Next, {
-    lang <- isolate(input$lang %||% "French")
+    lang <- input$lang %||% "French"
     if (is.null(input$DC_K) || length(input$DC_K) == 0) {
       showNotification(t("missing_newconcepts", lang), type = "error")
       return()
@@ -2815,7 +2815,7 @@ outputOptions(output, "soilServiceRankingUI", suspendWhenHidden = FALSE)
   
   
   observeEvent(input$dc_Back, {
-    lang <- isolate(input$lang %||% "French")
+    lang <- input$lang %||% "French"
     currentPage(14)
   })
   
@@ -2824,7 +2824,7 @@ outputOptions(output, "soilServiceRankingUI", suspendWhenHidden = FALSE)
   ### Threats Page ####
   
   observeEvent(input$threats_Next, {
-    lang <- isolate(input$lang %||% "French")
+    lang <- input$lang %||% "French"
     safe <- function(x) if (is.null(x)) NA else x
     
     saveRawInputs(data.frame(
@@ -2850,13 +2850,13 @@ outputOptions(output, "soilServiceRankingUI", suspendWhenHidden = FALSE)
   })
   
   observeEvent(input$threats_Back, {
-    lang <- isolate(input$lang %||% "French")
+    lang <- input$lang %||% "French"
     currentPage(15)
   })
   
   ### Demographics Page ####
   observeEvent(input$submitAll, {
-    lang <- isolate(input$lang %||% "French")
+    lang <- input$lang %||% "French"
     
     if (input$receive_results == "yes" && (is.null(input$contact_email) || input$contact_email == "")) {
       showNotification(t("missing_email", lang), type = "error")

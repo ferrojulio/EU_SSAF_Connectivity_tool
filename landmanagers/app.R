@@ -34,8 +34,152 @@ user <- Sys.getenv("PGUSER")
 password <- Sys.getenv("PGPASSWORD")
 dbname <- Sys.getenv("PGDATABASE")
 
-# Functions from utils.R are used here (saveRawInputs, saveScoringData, readResults)
-# No need to redefine them, just ensure they are sourced from utils.R
+ensure_columns_exist <- function(conn, table, data) {
+  existing_cols <- DBI::dbListFields(conn, table)
+  new_cols <- setdiff(names(data), existing_cols)
+  for (col in new_cols) {
+    # Infer type: numeric → DOUBLE PRECISION, else TEXT
+    type <- if (is.numeric(data[[col]])) "DOUBLE PRECISION" else "TEXT"
+    alter_sql <- sprintf(
+      "ALTER TABLE %s ADD COLUMN %s %s",
+      DBI::dbQuoteIdentifier(conn, table),
+      DBI::dbQuoteIdentifier(conn, col),
+      type
+    )
+    DBI::dbExecute(conn, alter_sql)
+    message("➕ Added column ", col, " (", type, ")")
+  }
+}
+
+# SaveData0: raw multilingual inputs
+saveRawInputs <- function(data, table = dbtable) {
+  conn <- tryCatch({
+    if (mode == "online") {
+      DBI::dbConnect(RPostgres::Postgres(),
+                     host = host, port = port,
+                     user = user, password = password,
+                     dbname = dbname,
+                     options = "-c search_path=public")
+    } else {
+      DBI::dbConnect(RSQLite::SQLite(), "TestDatabase.sqlite")
+    }
+  }, error = function(e) {
+    message("❌ DB connection failed: ", e$message)
+    return(NULL)
+  })
+  
+  if (is.null(conn)) return(NULL)
+  on.exit(DBI::dbDisconnect(conn))
+  
+  ensure_columns_exist(conn, table, data)
+  
+  # Ensure UTF-8 encoding for character data before sending to DB
+  data[] <- lapply(data, function(x) {
+    if (is.character(x)) {
+      iconv(x, from = "", to = "UTF-8") # Ensure UTF-8
+    } else {
+      x
+    }
+  })
+  
+  fields <- names(data)
+  placeholders <- paste0("$", seq_along(fields), collapse = ", ")
+  
+  values_list <- unname(as.list(data[1, , drop = FALSE]))
+  
+  quoted_fields <- as.character(DBI::dbQuoteIdentifier(conn, fields))
+  
+  query <- sprintf(
+    "INSERT INTO %s (%s) VALUES (%s) ON CONFLICT (session_token) DO UPDATE SET %s",
+    DBI::dbQuoteIdentifier(conn, table),
+    paste(quoted_fields, collapse = ", "),
+    placeholders,
+    paste(sprintf("%s = EXCLUDED.%s", quoted_fields, quoted_fields), collapse = ", ")
+  )
+  
+  tryCatch({
+    DBI::dbExecute(conn, query, params = values_list)
+  }, error = function(e) {
+    log_content <- paste(
+      Sys.time(),
+      "\nQuery failed:", query,
+      "\nError:", e$message,
+      "\nData:", paste(names(values_list), "=", sapply(values_list, function(v) if(is.character(v)) paste0("'",v,"'") else v), collapse=", "),
+      "\n\n"
+    )
+    cat(log_content,
+        file = "debug_log.txt", append = TRUE)
+    showNotification(paste("DB write error:", e$message), type = "error")
+  })
+}
+
+# SaveData1: simplified numerical scoring for downstream analysis
+saveScoringData <- function(data, table = dbtable) {
+  if (nrow(data) == 0 || !"session_token" %in% names(data)) return(NULL)
+  
+  conn <- tryCatch({
+    if (mode == "online") {
+      DBI::dbConnect(RPostgres::Postgres(),
+                     host = host, port = port,
+                     user = user, password = password,
+                     dbname = dbname,
+                     options = "-c search_path=public")
+    } else {
+      DBI::dbConnect(RSQLite::SQLite(), "TestDatabase.sqlite")
+    }
+  }, error = function(e) {
+    message("❌ DB connection failed: ", e$message)
+    return(NULL)
+  })
+  
+  if (is.null(conn)) return(NULL)
+  on.exit(DBI::dbDisconnect(conn))
+  
+  ensure_columns_exist(conn, table, data)
+  
+  data_sanitized <- as.data.frame(lapply(data, function(x) {
+    if (is.character(x)) {
+      iconv(x, from = "", to = "UTF-8")
+    } else {
+      x
+    }
+  }), stringsAsFactors = FALSE)
+  names(data_sanitized) <- names(data)
+  
+  token_value_for_where <- data_sanitized$session_token[1]
+  
+  fields_to_update <- setdiff(names(data_sanitized), "session_token")
+  if (length(fields_to_update) == 0) return(NULL)
+  
+  all_fields <- names(data_sanitized)
+  placeholders <- paste0("$", seq_along(all_fields), collapse = ", ")
+  
+  query <- sprintf(
+    "INSERT INTO %s (%s) VALUES (%s) ON CONFLICT (session_token) DO UPDATE SET %s",
+    table,
+    paste(all_fields, collapse = ", "),
+    placeholders,
+    paste(sprintf("%s = EXCLUDED.%s", setdiff(all_fields, "session_token"), setdiff(all_fields, "session_token")), collapse = ", ")
+  )
+  
+  values_list <- unname(as.list(data_sanitized[1, all_fields, drop = FALSE]))
+  
+  tryCatch({
+    DBI::dbExecute(conn, query, params = values_list)
+  }, error = function(e) {
+    log_content <- paste(
+      Sys.time(),
+      "\nQuery failed:", query,
+      "\nError:", e$message,
+      "\nData for SET:", paste(fields_to_update, "=", sapply(data_sanitized[1, fields_to_update, drop=FALSE], function(v) if(is.character(v)) paste0("'",v,"'") else v), collapse=", "),
+      "\nToken for WHERE:", token_value_for_where,
+      "\n\n"
+    )
+    cat(log_content,
+        file = "debug_log.txt", append = TRUE)
+    showNotification(paste("DB write error:", e$message), type = "error")
+  })
+}
 
 # ===== UI =====
 ui <- fluidPage(
@@ -72,10 +216,29 @@ server <- function(input, output, session) {
       showNotification(t("missing_consent", lang), type = "error", duration = 5)
       return()
     }
+    
+    # Save consent data
+    saveRawInputs(data.frame(
+      session_token = session_token(),
+      consent = input$consent,
+      timestamp_start = format(Sys.time(), tz = "UTC", usetz = FALSE),
+      stringsAsFactors = FALSE
+    ))
+    
     currentPage(currentPage() + 1)
   })
 
   observeEvent(input$nav_next_btn, {
+    # This is for page 1 to 2
+    if(currentPage() == 1) {
+        # Assuming there are some inputs on page 1 to save
+        # For now, let's just save a timestamp
+        saveRawInputs(data.frame(
+            session_token = session_token(),
+            page1_timestamp = format(Sys.time(), tz = "UTC", usetz = FALSE),
+            stringsAsFactors = FALSE
+        ))
+    }
     currentPage(currentPage() + 1)
   })
 

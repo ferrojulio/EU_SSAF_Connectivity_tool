@@ -1,0 +1,114 @@
+2025-08-23 09:46:59.599351
+🔍 Constructed UPSERT query:
+INSERT INTO "farmer_responses" ("session_token", "timestamp", "language") VALUES ($1, $2, $3) ON CONFLICT (session_token) DO UPDATE SET "session_token" = EXCLUDED."session_token", "timestamp" = EXCLUDED."timestamp", "language" = EXCLUDED."language"
+🔢 Fields: session_token, timestamp, language
+📦 Values: user_20250823093529_6446 | 2025-08-23 09:46:59 | English
+
+2025-08-23 09:47:10.339323
+🔍 Constructed UPSERT query:
+INSERT INTO "farmer_responses" ("session_token", "role", "other_role", "other_farmEnterprises", "other_perceivedThreats", "farm_enterprises", "perceived_threats") VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (session_token) DO UPDATE SET "session_token" = EXCLUDED."session_token", "role" = EXCLUDED."role", "other_role" = EXCLUDED."other_role", "other_farmEnterprises" = EXCLUDED."other_farmEnterprises", "other_perceivedThreats" = EXCLUDED."other_perceivedThreats", "farm_enterprises" = EXCLUDED."farm_enterprises", "perceived_threats" = EXCLUDED."perceived_threats"
+🔢 Fields: session_token, role, other_role, other_farmEnterprises, other_perceivedThreats, farm_enterprises, perceived_threats
+📦 Values: user_20250823093529_6446 | farmer |  |  |  | Élevage intensif de moutons ou de bovins;Porc ou volaille en plein air | Perte de carbone dans le sol
+
+2025-08-23 09:47:15.780433
+🔍 Constructed UPSERT query:
+INSERT INTO "farmer_responses" ("session_token", "supply_newconcepts", "supply_approach", "supply_opinion") VALUES ($1, $2, $3, $4) ON CONFLICT (session_token) DO UPDATE SET "session_token" = EXCLUDED."session_token", "supply_newconcepts" = EXCLUDED."supply_newconcepts", "supply_approach" = EXCLUDED."supply_approach", "supply_opinion" = EXCLUDED."supply_opinion"
+🔢 Fields: session_token, supply_newconcepts, supply_approach, supply_opinion
+📦 Values: user_20250823093529_6446 | supply_newconcepts_5 | supply_approach_3 | supply_opinion_1
+
+2025-08-23 09:47:21.382482
+🔍 Constructed UPSERT query:
+INSERT INTO "farmer_responses" ("session_token", "food_newconcepts", "food_approach", "food_opinion") VALUES ($1, $2, $3, $4) ON CONFLICT (session_token) DO UPDATE SET "session_token" = EXCLUDED."session_token", "food_newconcepts" = EXCLUDED."food_newconcepts", "food_approach" = EXCLUDED."food_approach", "food_opinion" = EXCLUDED."food_opinion"
+🔢 Fields: session_token, food_newconcepts, food_approach, food_opinion
+📦 Values: user_20250823093529_6446 | food_newconcepts_5 | food_approach_2 | food_opinion_2
+
+2025-08-23 09:47:26.584861
+🔍 Constructed UPSERT query:
+INSERT INTO "farmer_responses" ("session_token", "econ_newconcepts", "econ_approach", "econ_opinion") VALUES ($1, $2, $3, $4) ON CONFLICT (session_token) DO UPDATE SET "session_token" = EXCLUDED."session_token", "econ_newconcepts" = EXCLUDED."econ_newconcepts", "econ_approach" = EXCLUDED."econ_approach", "econ_opinion" = EXCLUDED."econ_opinion"
+🔢 Fields: session_token, econ_newconcepts, econ_approach, econ_opinion
+📦 Values: user_20250823093529_6446 | econ_newconcepts_1;econ_newconcepts_3 | econ_approach_3 | econ_opinion_2
+
+2025-08-23 09:48:35.848668
+🔍 Constructed UPSERT query:
+INSERT INTO "farmer_responses" ("session_token", "intSec_newconcepts", "intSec_approach", "intSec_opinion", "intSec_validation", "intSec_validation_comment") VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (session_token) DO UPDATE SET "session_token" = EXCLUDED."session_token", "intSec_newconcepts" = EXCLUDED."intSec_newconcepts", "intSec_approach" = EXCLUDED."intSec_approach", "intSec_opinion" = EXCLUDED."intSec_opinion", "intSec_validation" = EXCLUDED."intSec_validation", "intSec_validation_comment" = EXCLUDED."intSec_validation_comment"
+🔢 Fields: session_token, intSec_newconcepts, intSec_approach, intSec_opinion, intSec_validation, intSec_validation_comment
+📦 Values: user_20250823093529_6446 | intSec_newconcepts_1;intSec_newconcepts_2;intSec_newconcepts_3;intSec_newconcepts_4;intSec_newconcepts_5 | intSec_approach_3 | intSec_opinion_3 | YES | vdfv$#$#%
+
+2025-08-23 09:48:43.356824
+🔍 Constructed UPSERT query:
+INSERT INTO "farmer_responses" ("session_token", "defense_newconcepts", "defense_approach", "defense_opinion", "defense_validation", "defense_validation_comment") VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (session_token) DO UPDATE SET "session_token" = EXCLUDED."session_token", "defense_newconcepts" = EXCLUDED."defense_newconcepts", "defense_approach" = EXCLUDED."defense_approach", "defense_opinion" = EXCLUDED."defense_opinion", "defense_validation" = EXCLUDED."defense_validation", "defense_validation_comment" = EXCLUDED."defense_validation_comment"
+🔢 Fields: session_token, defense_newconcepts, defense_approach, defense_opinion, defense_validation, defense_validation_comment
+📦 Values: user_20250823093529_6446 | defense_newconcepts_4 | defense_approach_2 | defense_opinion_4 | YES | rebetbe
+
+2025-08-23 09:48:54.131595
+🔍 Constructed UPSERT query:
+INSERT INTO "farmer_responses" ("session_token", "number_soil_types", "timestamp_map", "language", "country", "region1", "region2", "soil_type_description", "lat", "lon") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) ON CONFLICT (session_token) DO UPDATE SET "session_token" = EXCLUDED."session_token", "number_soil_types" = EXCLUDED."number_soil_types", "timestamp_map" = EXCLUDED."timestamp_map", "language" = EXCLUDED."language", "country" = EXCLUDED."country", "region1" = EXCLUDED."region1", "region2" = EXCLUDED."region2", "soil_type_description" = EXCLUDED."soil_type_description", "lat" = EXCLUDED."lat", "lon" = EXCLUDED."lon"
+🔢 Fields: session_token, number_soil_types, timestamp_map, language, country, region1, region2, soil_type_description, lat, lon
+📦 Values: user_20250823093529_6446 | 2-3 | 2025-08-23 09:48:54 | English | ESP | Andalucía | Almería | fdgbdfgb | 37.19537168 | -2.345941055
+
+2025-08-23 09:48:59.142804
+🔍 Constructed UPSERT query:
+INSERT INTO "farmer_responses" ("session_token", "E_K", "E_approach", "E_opinion") VALUES ($1, $2, $3, $4) ON CONFLICT (session_token) DO UPDATE SET "session_token" = EXCLUDED."session_token", "E_K" = EXCLUDED."E_K", "E_approach" = EXCLUDED."E_approach", "E_opinion" = EXCLUDED."E_opinion"
+🔢 Fields: session_token, E_K, E_approach, E_opinion
+📦 Values: user_20250823093529_6446 | E_K_5 | E_approach_3 | E_opinion_1
+
+2025-08-23 09:49:12.819881
+🔍 Constructed UPSERT query:
+INSERT INTO "farmer_responses" ("session_token", "A_K", "A_approach", "A_opinion") VALUES ($1, $2, $3, $4) ON CONFLICT (session_token) DO UPDATE SET "session_token" = EXCLUDED."session_token", "A_K" = EXCLUDED."A_K", "A_approach" = EXCLUDED."A_approach", "A_opinion" = EXCLUDED."A_opinion"
+🔢 Fields: session_token, A_K, A_approach, A_opinion
+📦 Values: user_20250823093529_6446 | A_K_5 | A_approach_2 | A_opinion_2
+
+2025-08-23 09:49:34.129758
+🔍 Constructed UPSERT query:
+INSERT INTO "farmer_responses" ("session_token", "SD_K", "SD_approach", "SD_opinion") VALUES ($1, $2, $3, $4) ON CONFLICT (session_token) DO UPDATE SET "session_token" = EXCLUDED."session_token", "SD_K" = EXCLUDED."SD_K", "SD_approach" = EXCLUDED."SD_approach", "SD_opinion" = EXCLUDED."SD_opinion"
+🔢 Fields: session_token, SD_K, SD_approach, SD_opinion
+📦 Values: user_20250823093529_6446 | SD_K_1;SD_K_2;SD_K_3;SD_K_4;SD_K_5 | SD_approach_A2 | SD_opinion_A3
+
+2025-08-23 09:49:43.381183
+🔍 Constructed UPSERT query:
+INSERT INTO "farmer_responses" ("session_token", "S_K", "S_approach", "S_opinion") VALUES ($1, $2, $3, $4) ON CONFLICT (session_token) DO UPDATE SET "session_token" = EXCLUDED."session_token", "S_K" = EXCLUDED."S_K", "S_approach" = EXCLUDED."S_approach", "S_opinion" = EXCLUDED."S_opinion"
+🔢 Fields: session_token, S_K, S_approach, S_opinion
+📦 Values: user_20250823093529_6446 | S_K_5 | S_approach_2 | S_opinion_1
+
+2025-08-23 09:49:59.100737
+🔍 Constructed UPSERT query:
+INSERT INTO "farmer_responses" ("session_token", "HL_K", "HL_approach", "HL_opinion", "HL_val1") VALUES ($1, $2, $3, $4, $5) ON CONFLICT (session_token) DO UPDATE SET "session_token" = EXCLUDED."session_token", "HL_K" = EXCLUDED."HL_K", "HL_approach" = EXCLUDED."HL_approach", "HL_opinion" = EXCLUDED."HL_opinion", "HL_val1" = EXCLUDED."HL_val1"
+🔢 Fields: session_token, HL_K, HL_approach, HL_opinion, HL_val1
+📦 Values: user_20250823093529_6446 | HL_K_1;HL_K_2 | HL_approach_3 | HL_opinion_3 | HL_val1_A1
+
+2025-08-23 09:50:04.574781
+🔍 Constructed UPSERT query:
+INSERT INTO "farmer_responses" ("session_token", "NM_K", "NM_approach", "NM_opinion") VALUES ($1, $2, $3, $4) ON CONFLICT (session_token) DO UPDATE SET "session_token" = EXCLUDED."session_token", "NM_K" = EXCLUDED."NM_K", "NM_approach" = EXCLUDED."NM_approach", "NM_opinion" = EXCLUDED."NM_opinion"
+🔢 Fields: session_token, NM_K, NM_approach, NM_opinion
+📦 Values: user_20250823093529_6446 | NM_K_2;NM_K_3 | NM_approach_3 | NM_opinion_3
+
+2025-08-23 09:50:08.488876
+🔍 Constructed UPSERT query:
+INSERT INTO "farmer_responses" ("session_token", "SW_K", "SW_approach", "SW_opinion") VALUES ($1, $2, $3, $4) ON CONFLICT (session_token) DO UPDATE SET "session_token" = EXCLUDED."session_token", "SW_K" = EXCLUDED."SW_K", "SW_approach" = EXCLUDED."SW_approach", "SW_opinion" = EXCLUDED."SW_opinion"
+🔢 Fields: session_token, SW_K, SW_approach, SW_opinion
+📦 Values: user_20250823093529_6446 | SW_K_3;SW_K_4 | SW_approach_4 | SW_opinion_3
+
+2025-08-23 09:50:14.361401
+🔍 Constructed UPSERT query:
+INSERT INTO "farmer_responses" ("session_token", "SW_K", "SW_approach", "SW_opinion") VALUES ($1, $2, $3, $4) ON CONFLICT (session_token) DO UPDATE SET "session_token" = EXCLUDED."session_token", "SW_K" = EXCLUDED."SW_K", "SW_approach" = EXCLUDED."SW_approach", "SW_opinion" = EXCLUDED."SW_opinion"
+🔢 Fields: session_token, SW_K, SW_approach, SW_opinion
+📦 Values: user_20250823093529_6446 | SW_K_3;SW_K_4 | SW_approach_4 | SW_opinion_3
+
+2025-08-23 09:50:20.276394
+🔍 Constructed UPSERT query:
+INSERT INTO "farmer_responses" ("session_token", "DC_K", "DC_approach", "DC_opinion") VALUES ($1, $2, $3, $4) ON CONFLICT (session_token) DO UPDATE SET "session_token" = EXCLUDED."session_token", "DC_K" = EXCLUDED."DC_K", "DC_approach" = EXCLUDED."DC_approach", "DC_opinion" = EXCLUDED."DC_opinion"
+🔢 Fields: session_token, DC_K, DC_approach, DC_opinion
+📦 Values: user_20250823093529_6446 | DC_K_5 | DC_approach_1 | DC_opinion_1
+
+2025-08-23 09:50:24.663824
+🔍 Constructed UPSERT query:
+INSERT INTO "farmer_responses" ("session_token", "Threat_Val_E", "Threat_Val_E_comment", "Threat_Val_A", "Threat_Val_A_comment", "Threat_Val_SD", "Threat_Val_SD_comment", "Threat_Val_S", "Threat_Val_S_comment", "Threat_Val_HL", "Threat_Val_HL_comment", "Threat_Val_NM", "Threat_Val_NM_comment", "Threat_Val_DC", "Threat_Val_DC_comment", "OptionalComment") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) ON CONFLICT (session_token) DO UPDATE SET "session_token" = EXCLUDED."session_token", "Threat_Val_E" = EXCLUDED."Threat_Val_E", "Threat_Val_E_comment" = EXCLUDED."Threat_Val_E_comment", "Threat_Val_A" = EXCLUDED."Threat_Val_A", "Threat_Val_A_comment" = EXCLUDED."Threat_Val_A_comment", "Threat_Val_SD" = EXCLUDED."Threat_Val_SD", "Threat_Val_SD_comment" = EXCLUDED."Threat_Val_SD_comment", "Threat_Val_S" = EXCLUDED."Threat_Val_S", "Threat_Val_S_comment" = EXCLUDED."Threat_Val_S_comment", "Threat_Val_HL" = EXCLUDED."Threat_Val_HL", "Threat_Val_HL_comment" = EXCLUDED."Threat_Val_HL_comment", "Threat_Val_NM" = EXCLUDED."Threat_Val_NM", "Threat_Val_NM_comment" = EXCLUDED."Threat_Val_NM_comment", "Threat_Val_DC" = EXCLUDED."Threat_Val_DC", "Threat_Val_DC_comment" = EXCLUDED."Threat_Val_DC_comment", "OptionalComment" = EXCLUDED."OptionalComment"
+🔢 Fields: session_token, Threat_Val_E, Threat_Val_E_comment, Threat_Val_A, Threat_Val_A_comment, Threat_Val_SD, Threat_Val_SD_comment, Threat_Val_S, Threat_Val_S_comment, Threat_Val_HL, Threat_Val_HL_comment, Threat_Val_NM, Threat_Val_NM_comment, Threat_Val_DC, Threat_Val_DC_comment, OptionalComment
+📦 Values: user_20250823093529_6446 | Threat_Val_E_A3 |  | NA |  | NA |  | NA |  | NA |  | NA |  | NA |  | 
+
+2025-08-23 09:50:35.365068
+🔍 Constructed UPSERT query:
+INSERT INTO "farmer_responses" ("session_token", "Age", "education_level", "Land_ownership", "Land_area", "receive_results", "contact_email", "timestamp_submit") VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT (session_token) DO UPDATE SET "session_token" = EXCLUDED."session_token", "Age" = EXCLUDED."Age", "education_level" = EXCLUDED."education_level", "Land_ownership" = EXCLUDED."Land_ownership", "Land_area" = EXCLUDED."Land_area", "receive_results" = EXCLUDED."receive_results", "contact_email" = EXCLUDED."contact_email", "timestamp_submit" = EXCLUDED."timestamp_submit"
+🔢 Fields: session_token, Age, education_level, Land_ownership, Land_area, receive_results, contact_email, timestamp_submit
+📦 Values: user_20250823093529_6446 | 45to54 | education_6 | Land_ownership_A4 | NA | yes | ervev | 2025-08-23 09:50:35
+

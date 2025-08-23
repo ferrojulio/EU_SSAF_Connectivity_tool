@@ -1,3 +1,4 @@
+
 # Project Overview: SSAF Self-Evaluation Connectivity Tool
 
 This document provides an overview of the SSAF Self-Evaluation Connectivity Tool project, its current state, and a roadmap for future development.
@@ -16,6 +17,7 @@ The project is hosted on a DigitalOcean droplet and consists of the following ke
 *   **Shared Codebase:** The project utilizes a shared codebase in `utils.R`, `shared_app_components.R`, and `global.R` to manage common functionalities like database connections, translations, and UI components.
 *   **Database Integration:** The applications connect to a PostgreSQL database in the production environment and can use a local SQLite database for offline development and testing.
 *   **Multilingual Support:** The tool is designed to be multilingual, with a translation system that loads localized strings from `.rds` or `.xlsx` files.
+*   **Testing Environments:** To ensure stability, separate directories like `farmers_test/` are used for live testing of new features without impacting the production applications. These directories are self-contained and are not tracked by git.
 
 ## My Purpose & Expertise
 
@@ -36,6 +38,9 @@ Since the last update, the following significant changes and improvements have b
 *   **Bug Fixes and UI Enhancements:**
     *   Fixed a bug where translation keys were displayed instead of the translated text.
     *   Resolved application crashes in the `farmers` and `policymakers` apps.
+*   **Live Testing Environment Setup:**
+    *   Began setting up separate directories for testing applications (e.g., `farmers_test/`) to allow for live testing of new features without impacting production. These directories are not tracked by git.
+    *   Configured these test environments to be self-contained with their own copies of shared R files and data.
 
 ## Application Details
 

@@ -1,6 +1,3 @@
-
-
-
 scoreSupplySection <- function(input, session_token) {
   knowledge_weights <- c(
     "supply_newconcepts_1" = 4,
@@ -365,3 +362,48 @@ scoreCarbonSection <- function(input, session_token) {
   )
 }
 
+
+# Main function to calculate all scores for the farmer's survey
+calculate_final_scores_from_results <- function(results_data) {
+  if (is.null(results_data) || nrow(results_data) == 0) {
+    return(NULL)
+  }
+
+  # Calculate final dimension scores (S, E, P, C)
+  score_S <- mean(c(
+    results_data$score_erosion_final,
+    results_data$score_acid_final,
+    results_data$score_structure_final,
+    results_data$score_salinisation_final,
+    results_data$score_biodiversity_final,
+    results_data$score_fertilisation_final,
+    results_data$score_water_final,
+    results_data$score_carbon_final
+  ), na.rm = TRUE)
+
+  score_E <- results_data$score_econ_final
+
+  score_P <- mean(c(
+    results_data$score_supply_final,
+    results_data$score_food_final
+  ), na.rm = TRUE)
+
+  score_C <- mean(c(
+    results_data$score_intsec_final,
+    results_data$score_defense_final
+  ), na.rm = TRUE)
+
+  # Calculate overall Soil Security score
+  score_SS <- mean(c(score_S, score_E, score_P, score_C), na.rm = TRUE)
+
+  # Create final data frame
+  final_scores_df <- data.frame(
+    final_score_SS = score_SS,
+    final_score_S = score_S,
+    final_score_E = score_E,
+    final_score_P = score_P,
+    final_score_C = score_C
+  )
+
+  return(final_scores_df)
+}
