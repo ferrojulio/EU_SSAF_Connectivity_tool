@@ -9,3 +9,6 @@ tmp_git/
 .RData
 .Rhistory
 .Rprofile
+.Renviron
+tests/
+GEMINI.md

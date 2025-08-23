@@ -11,7 +11,7 @@ library(htmltools)
 library(RPostgres)
 
 
-translations <<- readRDS("/srv/shiny-server/farmers/Farmers_translations.rds")
+translations <<- read.csv("/srv/shiny-server/farmers/Farmers_translations.csv", fileEncoding = "UTF-8")
 
 translations <- translations[!is.na(translations$unique_ID), ]
 
