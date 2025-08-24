@@ -14,32 +14,18 @@ library(readxl)
 
 translations <<- read_excel("/srv/shiny-server/policymakers/Policymakers_translations_new.xlsx")
 
-# Workaround for swapped French and English translations
-if ("French" %in% colnames(translations) && "English" %in% colnames(translations)) {
-  # Heuristic: Check a known key to see if the languages are swapped
-  # Assuming "dont_know" is a reliable key for this check
-  if (translations[translations$unique_ID == "dont_know", "French"] == "Don't know" &&
-      translations[translations$unique_ID == "dont_know", "English"] == "Je ne sais pas") {
-    
-    message("Detected swapped French and English translations. Swapping columns back.")
-    
-    # Temporarily store one column
-    temp_col <- translations$French
-    # Assign English to French
-    translations$French <- translations$English
-    # Assign temp (original French) to English
-    translations$English <- temp_col
-  }
-}
+source("/srv/shiny-server/shared_app_components.R", local = TRUE)
+
 
 translations <- translations[!is.na(translations$unique_ID), ]
 
 source("/srv/shiny-server/utils.R",local = TRUE)  
 
 # Load shared objects
-source("/srv/shiny-server/global.R", local = FALSE)
+# source("/srv/shiny-server/global.R", local = FALSE) # Removed as all_gadm41_centroids_level2.rds is not used by policymakers app
 
 # If global failed, fallback to local readRDS
+
 
 
 
@@ -58,7 +44,7 @@ try({
 
 
 
-checkTranslationKeys(used_translation_keys, translations)
+
 
 # ===== DATABASE SETUP =====
 # 
@@ -276,34 +262,8 @@ safe_isolate_string <- function(x) {
 
 # ===== UI =====
 ui <- fluidPage(
-  tags$head(
-    tags$link(rel = "icon", href = "favicon.ico", type = "image/x-icon"),
-    tags$link(rel = "stylesheet", href = "app.css"),
-    tags$script(src = "app.js")
-  ),
-  
-  
-  
-  # LOGO
-  div(
-    class = "top-bar",
-    
-    ## LEFT  – language selector
-    div(
-      style = "min-width:160px;",    # keeps width steady as UI re-renders
-      selectInput("lang",
-                  label = "Langue / Language / Idioma",
-                  choices = c("French", "Spanish", "English"),
-                  selected = "French",
-                  width   = "160px")
-    ),
-    
-    ## RIGHT – logo pair
-    div(
-      class = "logo-bar",
-      tags$img(src = "Logos.png",  alt = "USYD and ESDR3C Lab Logos")
-    )
-  ),
+  common_head_ui("policymakers"),
+  common_top_bar_ui(),
   
   # MAIN UI
   div(
@@ -318,21 +278,7 @@ ui <- fluidPage(
         uiOutput("mainUI")
       )
     )),
-  div(
-    class = "footer",
-    div(class = "page-wrapper", HTML('
-    <p style="margin-bottom: 5px;">
-      <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">
-        <img src="https://licensebuttons.net/l/by/4.0/88x31.png" alt="CC BY 4.0" style="height: 31px; vertical-align: middle;">
-      </a>
-    </p>
-    <p style="margin-top: 5px;">
-      Application designed by Celine Basset and coded by Julio Pachon.
-    </p>
-  '))
-  )
-  
-  
+  common_footer_ui()
 )
 
 
@@ -367,76 +313,23 @@ server <- function(input, output, session) {
   })
   
   once <- reactiveVal(TRUE) 
-  # Setup session token and page
-  session_token <- reactiveVal(NULL)
+  # Use shared session management
+  shared_session_data <- setup_app_session_and_progress(
+    input, output, session, 
+    dbtable_name = "policymakers_responses", 
+    appPrefix = "policymakers",
+    total_pages_reactive = reactive({ 18 }) # Assuming 18 total pages for policymakers app
+  )
+  session_token <- shared_session_data$session_token
+  currentPage <- shared_session_data$currentPage
+   
   
-  currentPage <- reactiveVal(0)
+  
   
   observeEvent(input$restoredPage, {
-    restored <- suppressWarnings(as.numeric(input$restoredPage))
-    if (!is.na(restored)) currentPage(restored)
-  })
-  
-  
-  observeEvent(currentPage(), {
     lang <- input$lang %||% "French"
-
-    # Logic for redirecting to page 0 if session is invalid
-    if (currentPage() != 0 && (is.null(session_token()) || session_token() == "")) {
-      currentPage(0)
-      session$sendCustomMessage("clearLocalStorageKey", list(key = "policy_sessionToken"))
-      showNotification("Invalid session. Redirecting to start page.", type = "warning", duration = 5)
-      return()
-    }
-
-    # Logic for sending page change message and updating session token in local storage
-    session$sendCustomMessage('pageChanged', list(
-      page      = currentPage(),
-      lang      = input$lang %||% 'French',
-      timestamp = Sys.time()
-    ))
-    session$sendCustomMessage("setSessionToken", list(key = "policy_sessionToken", value = session_token()))
-
-    # Logic for resetting map coordinates
-    # Reset location when user changes page or country/region
-    if (currentPage() != 7) {
-      userCoords$lat <- NULL
-      userCoords$lon <- NULL
-    }
-  })
-  
-  observeEvent(input$browserBackPage, {
-    target <- suppressWarnings(as.integer(input$browserBackPage))
-    if (!is.na(target)) currentPage(target)
-  })
-  
-  
-  
-  
-  observeEvent(input$restoredSessionToken, {
-    restored_token <- input$restoredSessionToken
-    # Only restore if it's a non-empty string and not "[]"
-    if (!is.null(restored_token) && restored_token != "" && restored_token != "[]") {
-      session_token(restored_token)
-      print(paste("Restored session token:", session_token()))
-    }
-  })
-  
-  # New observe block for redirect logic
-  observe({
-    current_page_val <- currentPage()
-    session_token_val <- session_token() # Access reactive value
-
-    # Only enforce redirect if a restored token has been processed (input$restoredSessionToken is set)
-    # and if the current page is not 0, and the session token is invalid.
-    if (!is.null(input$restoredSessionToken) && # Check if restored token has been processed
-        current_page_val != 0 &&
-        (is.null(session_token_val) || session_token_val == "")) {
-      
-      currentPage(0)
-      session$sendCustomMessage("clearLocalStorageKey", list(key = "policy_sessionToken"))
-      showNotification("Invalid session. Redirecting to start page.", type = "warning", duration = 5)
-    }
+    restoredPage <- suppressWarnings(as.numeric(input$restoredPage))
+    if (!is.na(restoredPage)) currentPage(restoredPage)
   })
   
   
@@ -461,25 +354,6 @@ server <- function(input, output, session) {
   }, ignoreInit = TRUE)
   
   
-  
-  
-  ##Progress bar ####
-  output$progressUI <- renderUI({
-    p <- currentPage()
-    total_pages <- 18
-    
-    if (p < 1 || p > total_pages) return(NULL)
-    
-    percent <- round((p - 1) / (total_pages - 1) * 100)
-    
-    div(class = "progress-wrapper",
-        div(class = "progress",
-            div(class = "progress-bar",
-                role = "progressbar",
-                style = paste0("width:", percent, "%;"))
-        )
-    )
-  })
   
   
   
@@ -549,10 +423,10 @@ server <- function(input, output, session) {
       lat <- mean(filtered$lat, na.rm = TRUE)
       lon <- mean(filtered$lon, na.rm = TRUE)
     }
-    leaflet() %>%
-      addProviderTiles("Esri.WorldStreetMap", group = "Street Map") %>%
-      addProviderTiles("Esri.WorldImagery", group = "Satellite Image") %>%
-      addProviderTiles("CartoDB.PositronOnlyLabels", group = "Satellite Image") %>%
+    leaflet() %>% 
+      addProviderTiles("Esri.WorldStreetMap", group = "Street Map") %>% 
+      addProviderTiles("Esri.WorldImagery", group = "Satellite Image") %>% 
+      addProviderTiles("CartoDB.PositronOnlyLabels", group = "Satellite Image") %>% 
       
       setView(lng = lon, lat = lat, zoom = zoom)
   })
@@ -566,8 +440,8 @@ server <- function(input, output, session) {
     if (!is.null(click$lat) && !is.null(click$lng)) {
       userCoords$lat <- click$lat
       userCoords$lon <- click$lng
-      leafletProxy("soilMap_new") %>%
-        clearMarkers() %>%
+      leafletProxy("soilMap_new") %>% 
+        clearMarkers() %>% 
         addMarkers(lng = userCoords$lon, lat = userCoords$lat)
     }
   })
@@ -578,20 +452,20 @@ server <- function(input, output, session) {
     req(input$country, input$region1, input$region2)
     commune_centroids <- commune_centroids_reactive()
     req(commune_centroids)
-    centroid <- commune_centroids %>%
+    centroid <- commune_centroids %>% 
       filter(country == input$country,
              region1 == input$region1,
              region2 == input$region2)
     if (nrow(centroid) == 1) {
       userCoords$lat <- centroid$lat
       userCoords$lon <- centroid$lon
-      leafletProxy("soilMap_new") %>%
-        clearMarkers() %>%
+      leafletProxy("soilMap_new") %>% 
+        clearMarkers() %>% 
         addMarkers(lng = userCoords$lon, lat = userCoords$lat)
     }
   }, ignoreInit = TRUE)
   
-  #
+  # 
   output$selected_coords_new <- renderText({
     if (!is.null(userCoords$lat) && !is.null(userCoords$lon)) {
       paste0(t("selected_coords", input$lang), ": ",
@@ -606,7 +480,7 @@ server <- function(input, output, session) {
     userCoords$lat <- -999
     userCoords$lon <- -999
     
-    leafletProxy("soilMap_new") %>%
+    leafletProxy("soilMap_new") %>% 
       clearMarkers()
     
     output$selected_coords_new <- renderText({
@@ -700,6 +574,7 @@ server <- function(input, output, session) {
         ),
         
         
+        tags$script(HTML(sprintf("initExclusiveGroup('%s', %s);", htmltools::htmlEscape("perceivedThreats"), jsonlite::toJSON("Autre (précisez)", auto_unbox = TRUE)))),
         actionButton("PRESENTATION_Back", t("nav_back", input$lang)),
         actionButton("PRESENTATION_Next", t("nav_next", input$lang))
       )
@@ -710,7 +585,7 @@ server <- function(input, output, session) {
         
         h3(t("Supply_header", input$lang)),
         
-        exclusiveCheckboxScript("supply_newconcepts", "supply_newconcepts_5"),
+        tags$script(HTML(sprintf("initExclusiveGroup('%s', %s);", htmltools::htmlEscape("supply_newconcepts"), jsonlite::toJSON("supply_newconcepts_5", auto_unbox = TRUE)))),
         
         uiOutput("supply_newconcepts_1"),
         
@@ -755,7 +630,7 @@ server <- function(input, output, session) {
         h3(t("food_header", input$lang)),
         
         # Disable others if "I'm familiar with all" is selected
-        exclusiveCheckboxScript("food_newconcepts", "food_newconcepts_5"),
+        tags$script(HTML(sprintf("initExclusiveGroup('%s', %s);", htmltools::htmlEscape("food_newconcepts"), jsonlite::toJSON("food_newconcepts_5", auto_unbox = TRUE)))),
         
         
         
@@ -798,7 +673,7 @@ server <- function(input, output, session) {
       fluidPage(
         h3(t("econ_header", input$lang)),
         
-        exclusiveCheckboxScript("econ_newconcepts", "econ_newconcepts_5"),
+        tags$script(HTML(sprintf("initExclusiveGroup('%s', %s);", htmltools::htmlEscape("econ_newconcepts"), jsonlite::toJSON("econ_newconcepts_5", auto_unbox = TRUE)))),
         
         uiOutput("econ_newconcepts_1"),
         
@@ -841,7 +716,7 @@ server <- function(input, output, session) {
       fluidPage(
         h3(t("intSec_header", input$lang)),
         
-        exclusiveCheckboxScript("intSec_newconcepts", "intSec_newconcept_5"),
+        tags$script(HTML(sprintf("initExclusiveGroup('%s', %s);", htmltools::htmlEscape("intSec_newconcepts"), jsonlite::toJSON(c("intSec_newconcept_5"), auto_unbox = TRUE)))),
         
         uiOutput("intSec_newconcepts_1"),
         
@@ -897,7 +772,7 @@ server <- function(input, output, session) {
       fluidPage(
         h3(t("defense_header", input$lang)),
         
-        exclusiveCheckboxScript("defense_newconcepts", "defense_newconcepts_5"),
+        tags$script(HTML(sprintf("initExclusiveGroup('%s', %s);", htmltools::htmlEscape("defense_newconcepts"), jsonlite::toJSON("defense_newconcepts_5", auto_unbox = TRUE)))),
         
         uiOutput("defense_newconcepts_1"),
         
@@ -1033,7 +908,7 @@ server <- function(input, output, session) {
           )
         },
         
-        exclusiveCheckboxScript("E_K", "E_K_5"),
+        tags$script(HTML(sprintf("initExclusiveGroup('%s', %s);", htmltools::htmlEscape("E_K"), jsonlite::toJSON("E_K_5", auto_unbox = TRUE)))),
         uiOutput("E_K_1"),
         radioButtons(
           "E_approach",
@@ -1093,7 +968,7 @@ server <- function(input, output, session) {
         },
         
         
-        exclusiveCheckboxScript("A_K", "A_K_5"),
+        tags$script(HTML(sprintf("initExclusiveGroup('%s', %s);", htmltools::htmlEscape("A_K"), jsonlite::toJSON("A_K_5", auto_unbox = TRUE)))),
         uiOutput("A_K_1"),
         
         radioButtons("A_approach",
@@ -1145,7 +1020,7 @@ server <- function(input, output, session) {
         },
         
         
-        exclusiveCheckboxScript("SD_K", "SD_K_A5"),
+        tags$script(HTML(sprintf("initExclusiveGroup('%s', %s);", htmltools::htmlEscape("SD_K"), jsonlite::toJSON("SD_K_A5", auto_unbox = TRUE)))),
         
         uiOutput("SD_K_1"),
         
@@ -1204,7 +1079,7 @@ server <- function(input, output, session) {
           )
         },
         
-        exclusiveCheckboxScript("S_K", "S_K_5"),
+        tags$script(HTML(sprintf("initExclusiveGroup('%s', %s);", htmltools::htmlEscape("S_K"), jsonlite::toJSON("S_K_5", auto_unbox = TRUE)))),
         uiOutput("S_K_1"),
         
         radioButtons("S_approach",
@@ -1264,7 +1139,7 @@ server <- function(input, output, session) {
         },
         
         
-        exclusiveCheckboxScript("HL_K", "HL_K_5"),
+        tags$script(HTML(sprintf("initExclusiveGroup('%s', %s);", htmltools::htmlEscape("HL_K"), jsonlite::toJSON("HL_K_5", auto_unbox = TRUE)))),
         uiOutput("HL_K_1"),
         
         radioButtons("HL_approach",
@@ -1331,7 +1206,7 @@ server <- function(input, output, session) {
           )
         },
         
-        exclusiveCheckboxScript("NM_K", "NM_K_5"),
+        tags$script(HTML(sprintf("initExclusiveGroup('%s', %s);", htmltools::htmlEscape("NM_K"), jsonlite::toJSON("NM_K_5", auto_unbox = TRUE)))),
         uiOutput("NM_K_1"),
         
         radioButtons("NM_approach",
@@ -1392,7 +1267,7 @@ server <- function(input, output, session) {
         },
         
         
-        exclusiveCheckboxScript("SW_K", "SW_K_5"),
+        tags$script(HTML(sprintf("initExclusiveGroup('%s', %s);", htmltools::htmlEscape("SW_K"), jsonlite::toJSON("SW_K_5", auto_unbox = TRUE)))),
         uiOutput("SW_K_1"),
         
         radioButtons("SW_approach",
@@ -1452,7 +1327,7 @@ server <- function(input, output, session) {
           )
         },
         
-        exclusiveCheckboxScript("DC_K", "DC_K_5"),
+        tags$script(HTML(sprintf("initExclusiveGroup('%s', %s);", htmltools::htmlEscape("DC_K"), jsonlite::toJSON("DC_K_5", auto_unbox = TRUE)))),
         uiOutput("DC_K_1"),
         
         radioButtons("DC_approach",
@@ -1680,12 +1555,7 @@ server <- function(input, output, session) {
           selected = isolate(input$education_level %||% character(0))
         ),
         
-        uiOutput("Land_ownership_1"),
         
-        numericInput(
-          "Land_area", t("Land_area_Q", input$lang),
-          value =isolate(if (is.null(input$Land_area)) NA else input$Land_area),
-        ),
         br(),
         
         # --- Optional: Receive results/contact for studies ---
@@ -1694,12 +1564,12 @@ server <- function(input, output, session) {
           "receive_results", NULL,
           choices = setNames(
             c("yes", "no"),
-            c(t("receive_results_A1", input$lang), t("receive_results_A2", input$lang))
+            c(t("receive_results_A1", input$lang), t("no", input$lang))
           ),
           selected = isolate(input$receive_results %||% character(0))
         ),
         conditionalPanel(
-          condition = "input.receive_results == 'yes'",
+          condition = "input$receive_results == 'yes'",
           textInput("contact_email", t("receive_results_email", input$lang),
                     value = safe_isolate_string(input$contact_email %||% ""))
         ),
@@ -1800,7 +1670,6 @@ server <- function(input, output, session) {
       div(style = "color:red;", "⚠ Error loading 'role' options")
     })
   })
-  
   
   
   
@@ -2080,10 +1949,10 @@ outputOptions(output, "soilServiceRankingUI", suspendWhenHidden = FALSE)
     
     avg_score <- mean(numeric_scores)
     band_key <- dplyr::case_when(
-      avg_score <= 0.25 ~ "scoring_band_1",
-      avg_score <= 0.5  ~ "scoring_band_2",
-      avg_score <= 0.75 ~ "scoring_band_3",
-      TRUE              ~ "scoring_band_4"
+      avg_score <= 0.25 ~ "score_band1",
+      avg_score <= 0.5  ~ "score_band2",
+      avg_score <= 0.75 ~ "score_band3",
+      TRUE              ~ "score_band4"
     )
     
     div(
@@ -2867,8 +2736,6 @@ outputOptions(output, "soilServiceRankingUI", suspendWhenHidden = FALSE)
       session_token = session_token(),
       Age = input$Age,
       education_level = input$education_level,
-      Land_ownership = csv_collapse(input$Land_ownership),
-      Land_area = input$Land_area,
       receive_results = input$receive_results,
       contact_email = if (!is.null(input$receive_results) && input$receive_results == "yes") input$contact_email else "",
       timestamp_submit = format(Sys.time(), tz = "UTC", usetz = FALSE),
@@ -2891,8 +2758,3 @@ outputOptions(output, "soilServiceRankingUI", suspendWhenHidden = FALSE)
 }
 
 shinyApp(ui = ui, server = server)
-
-
-
-
-

@@ -36,7 +36,7 @@ try({
 
 
 
-checkTranslationKeys(used_translation_keys, translations)
+
 
 # ===== DATABASE SETUP =====
 # 
@@ -304,7 +304,8 @@ ui <- fluidPage(
     tags$link(rel = "icon", href = "favicon.ico", type = "image/x-icon"),
     tags$link(rel = "stylesheet", href = "app.css"),
     tags$script(src = "app.js"),
-    tags$script(HTML("window.appPrefix = 'farmers';"))
+    tags$script(HTML("window.appPrefix = 'farmers';")),
+    tags$script(src = "exclusive-checkbox.js")
   ),
   
   # LOGO
@@ -392,25 +393,7 @@ server <- function(input, output, session) {
   session_token <- shared_session_data$session_token
   currentPage <- shared_session_data$currentPage
   
-  observeEvent(input$restoredSessionToken, {
-    lang <- input$lang %||% "French"
-    if (is.null(input$restoredSessionToken) || input$restoredSessionToken == "") {
-      if (is.null(session_token())) session_token(generateUserID())
-    } else {
-      
-      session_token(input$restoredSessionToken)
-      
-    }
-    print(paste("Session token on page", currentPage(), "=", session_token()))
-  })
   
-  observe({
-    lang <- input$lang %||% "French"
-    if (is.null(session_token())) {
-      session_token(generateUserID())
-      message("⚠️ session_token was null — generated new token.")
-    }
-  })
   
   
   observeEvent(input$restoredPage, {
@@ -683,6 +666,7 @@ server <- function(input, output, session) {
                     value = safe_isolate_string(input$other_perceivedThreats %||% ""))
         ),
         
+        tags$script(HTML(sprintf("initExclusiveGroup('%s', %s);", htmltools::htmlEscape("perceivedThreats"), jsonlite::toJSON("None of the above", auto_unbox = TRUE)))),
         actionButton("PRESENTATION_Back", t("nav_back", lang)),
         actionButton("PRESENTATION_Next", t("nav_next", lang))
       )
@@ -692,7 +676,7 @@ server <- function(input, output, session) {
       tagList(   
         h3(t("Supply_header", input$lang)),
         
-        exclusiveCheckboxScript("supply_newconcepts", "supply_newconcepts_5"),
+        tags$script(HTML(sprintf("initExclusiveGroup('%s', %s);", htmltools::htmlEscape("supply_newconcepts"), jsonlite::toJSON("supply_newconcepts_5", auto_unbox = TRUE)))),
         uiOutput("supply_newconcepts_1"),
         
         radioButtons("supply_approach", 
@@ -734,7 +718,7 @@ server <- function(input, output, session) {
         h3(t("food_header", input$lang)),
         
         # Disable others if "I'm familiar with all" is selected
-        exclusiveCheckboxScript("food_newconcepts", "food_newconcepts_5"),
+        tags$script(HTML(sprintf("initExclusiveGroup('%s', %s);", htmltools::htmlEscape("food_newconcepts"), jsonlite::toJSON("food_newconcepts_5", auto_unbox = TRUE)))),
         
         
         
@@ -777,7 +761,7 @@ server <- function(input, output, session) {
       fluidPage(
         h3(t("econ_header", input$lang)),
         
-        exclusiveCheckboxScript("econ_newconcepts", "econ_newconcepts_5"),
+        tags$script(HTML(sprintf("initExclusiveGroup('%s', %s);", htmltools::htmlEscape("econ_newconcepts"), jsonlite::toJSON("econ_newconcepts_5", auto_unbox = TRUE)))),
         
         uiOutput("econ_newconcepts_1"),
         
@@ -820,7 +804,7 @@ server <- function(input, output, session) {
       fluidPage(
         h3(t("intSec_header", input$lang)),
         
-        exclusiveCheckboxScript("intSec_newconcepts", "intSec_newconcept_5"),
+        tags$script(HTML(sprintf("initExclusiveGroup('%s', %s);", htmltools::htmlEscape("intSec_newconcepts"), jsonlite::toJSON(c("intSec_newconcept_5"), auto_unbox = TRUE)))),
         
         uiOutput("intSec_newconcepts_1"),
         
@@ -876,7 +860,7 @@ server <- function(input, output, session) {
       fluidPage(
         h3(t("defense_header", input$lang)),
         
-        exclusiveCheckboxScript("defense_newconcepts", "defense_newconcepts_5"),
+        tags$script(HTML(sprintf("initExclusiveGroup('%s', %s);", htmltools::htmlEscape("defense_newconcepts"), jsonlite::toJSON("defense_newconcepts_5", auto_unbox = TRUE)))),
         
         uiOutput("defense_newconcepts_1"),
         
@@ -1015,7 +999,7 @@ server <- function(input, output, session) {
           )
         },
         
-        exclusiveCheckboxScript("E_K", "E_K_5"),
+        tags$script(HTML(sprintf("initExclusiveGroup('%s', %s);", htmltools::htmlEscape("E_K"), jsonlite::toJSON("E_K_5", auto_unbox = TRUE)))),
         uiOutput("E_K_1"),
         radioButtons(
           "E_approach",
@@ -1075,7 +1059,7 @@ server <- function(input, output, session) {
         },
         
         
-        exclusiveCheckboxScript("A_K", "A_K_5"),
+        tags$script(HTML(sprintf("initExclusiveGroup('%s', %s);", htmltools::htmlEscape("A_K"), jsonlite::toJSON("A_K_5", auto_unbox = TRUE)))),
         uiOutput("A_K_1"),
         
         radioButtons("A_approach",
@@ -1127,7 +1111,7 @@ server <- function(input, output, session) {
         },
         
         
-        exclusiveCheckboxScript("SD_K", "SD_K_A5"),
+        tags$script(HTML(sprintf("initExclusiveGroup('%s', %s);", htmltools::htmlEscape("SD_K"), jsonlite::toJSON("SD_K_A5", auto_unbox = TRUE)))),
         
         uiOutput("SD_K_1"),
         
@@ -1186,7 +1170,7 @@ server <- function(input, output, session) {
           )
         },
         
-        exclusiveCheckboxScript("S_K", "S_K_5"),
+        tags$script(HTML(sprintf("initExclusiveGroup('%s', %s);", htmltools::htmlEscape("S_K"), jsonlite::toJSON("S_K_5", auto_unbox = TRUE)))),
         uiOutput("S_K_1"),
         
         radioButtons("S_approach",
@@ -1246,7 +1230,7 @@ server <- function(input, output, session) {
         },
         
         
-        exclusiveCheckboxScript("HL_K", "HL_K_5"),
+        tags$script(HTML(sprintf("initExclusiveGroup('%s', %s);", htmltools::htmlEscape("HL_K"), jsonlite::toJSON("HL_K_5", auto_unbox = TRUE)))),
         uiOutput("HL_K_1"),
         
         radioButtons("HL_approach",
@@ -1313,7 +1297,7 @@ server <- function(input, output, session) {
           )
         },
         
-        exclusiveCheckboxScript("NM_K", "NM_K_5"),
+        tags$script(HTML(sprintf("initExclusiveGroup('%s', %s);", htmltools::htmlEscape("NM_K"), jsonlite::toJSON("NM_K_5", auto_unbox = TRUE)))),
         uiOutput("NM_K_1"),
         
         radioButtons("NM_approach",
@@ -1374,7 +1358,7 @@ server <- function(input, output, session) {
         },
         
         
-        exclusiveCheckboxScript("SW_K", "SW_K_5"),
+        tags$script(HTML(sprintf("initExclusiveGroup('%s', %s);", htmltools::htmlEscape("SW_K"), jsonlite::toJSON("SW_K_5", auto_unbox = TRUE)))),
         uiOutput("SW_K_1"),
         
         radioButtons("SW_approach",
@@ -1434,7 +1418,7 @@ server <- function(input, output, session) {
           )
         },
         
-        exclusiveCheckboxScript("DC_K", "DC_K_5"),
+        tags$script(HTML(sprintf("initExclusiveGroup('%s', %s);", htmltools::htmlEscape("DC_K"), jsonlite::toJSON("DC_K_5", auto_unbox = TRUE)))),
         uiOutput("DC_K_1"),
         
         radioButtons("DC_approach",

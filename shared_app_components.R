@@ -49,40 +49,30 @@ setup_app_session_and_progress <- function(input, output, session, dbtable_name,
   session_token <- reactiveVal(NULL)
   currentPage <- reactiveVal(0)
 
-  # Restore session token
   observeEvent(input$restoredSessionToken, {
-    restored_token <- input$restoredSessionToken
-    if (!is.null(restored_token) && restored_token != "" && restored_token != "[]") {
-      session_token(restored_token)
-      print(paste("Restored session token:", session_token()))
-    }
-  }, priority = 10)
-
-  # Generate new token if needed
-  observe({
-    if (is.null(session_token())) {
-      session_token(generateUserID()) # Assuming generateUserID is in utils.R
-      message("⚠️ session_token was null — generated new token.")
+    if (!is.null(input$restoredSessionToken) && input$restoredSessionToken != "") {
+      session_token(input$restoredSessionToken)
+      message("✅ Session token restored: ", session_token())
+    } else {
+      session_token(generateUserID())
+      message("⚠️ No session token restored, generated new token: ", session_token())
     }
   })
 
-  # Restore page
   observeEvent(input$restoredPage, {
     restored <- suppressWarnings(as.numeric(input$restoredPage))
     if (!is.na(restored)) currentPage(restored)
   })
 
-  # Page change observer
   observeEvent(currentPage(), {
     lang <- isolate(input$lang %||% "French")
-    session$sendCustomMessage("setAppPrefix", appPrefix) # Set appPrefix in JS
+    session$sendCustomMessage("setAppPrefix", appPrefix)
     session$sendCustomMessage("setSessionToken", list(key = paste0(appPrefix, "_sessionToken"), value = session_token()))
     session$sendCustomMessage("scrollTop", list())
     user_lang <- if (!is.null(input$lang)) input$lang else "French"
-    session$sendCustomMessage("disconnectedAlert", t("disconnected_alert", user_lang)) # Assuming t is available
+    session$sendCustomMessage("disconnectedAlert", t("disconnected_alert", user_lang))
     session$sendCustomMessage('pageChanged', list(page = currentPage(), appPrefix = appPrefix))
 
-    # Logic for redirecting to page 0 if session is invalid
     if (currentPage() != 0 && (is.null(session_token()) || session_token() == "")) {
       currentPage(0)
       session$sendCustomMessage("clearLocalStorageKey", list(key = paste0(appPrefix, "_sessionToken")))
@@ -91,16 +81,14 @@ setup_app_session_and_progress <- function(input, output, session, dbtable_name,
     }
   })
 
-  # Browser back/forward button
   observeEvent(input$browserBackPage, {
     target <- suppressWarnings(as.integer(input$browserBackPage))
     if (!is.na(target)) currentPage(target)
   })
 
-  # Progress bar UI
   output$progressUI <- renderUI({
     p <- currentPage()
-    total_pages <- if (!is.null(total_pages_reactive)) total_pages_reactive() else 18 # Default to 18 if not provided
+    total_pages <- if (!is.null(total_pages_reactive)) total_pages_reactive() else 18
 
     if (p < 1 || p > total_pages) return(NULL)
     percent <- round((p - 1) / (total_pages - 1) * 100)
@@ -113,14 +101,12 @@ setup_app_session_and_progress <- function(input, output, session, dbtable_name,
     )
   })
 
-  # Return reactive values
   list(
     session_token = session_token,
     currentPage = currentPage
   )
 }
 
-# safe_isolate_string function (common to both)
 safe_isolate_string <- function(x) {
   val <- isolate(x)
   if (is.null(val) || is.na(val)) return("")
