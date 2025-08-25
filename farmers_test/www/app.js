@@ -1,10 +1,5 @@
 // app.js
 
-Shiny.addCustomMessageHandler('setAppPrefix', msg => {
-  window.appPrefix = msg;
-  console.log('✅ appPrefix set to:', window.appPrefix);
-});
-
 // ===== session storage helpers =====
 function clearLocalStorage() {
   localStorage.clear();
@@ -34,8 +29,6 @@ Shiny.addCustomMessageHandler('setSessionToken', msg => {
   }
   localStorage.setItem(msg.key, token);
   console.log('✅ localStorage set:', msg.key, token);
-  // ADD THIS LINE TO VERIFY IMMEDIATE READBACK
-  console.log('🔍 localStorage readback verification:', msg.key, localStorage.getItem(msg.key));
 });
 
 Shiny.addCustomMessageHandler('clearLocalStorageKey', msg => {

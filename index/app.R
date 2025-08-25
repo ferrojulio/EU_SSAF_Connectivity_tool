@@ -69,7 +69,7 @@ server <- function(input, output, session) {
       div(class = "btn-group", style = "margin: 30px 0; width: 100%;",
           tags$link(rel = "stylesheet", href = "app.css"),
           tags$a(href = "/farmers", class = "btn btn-primary", t("page0_Farmer", input$lang)),
-          tags$a(href = "/landmanagers", class = "btn btn-primary", t("page0_Land", input$lang)),
+ #        tags$a(href = "/landmanagers", class = "btn btn-primary", t("page0_Land", input$lang)),
           tags$a(href = "/policymakers", class = "btn btn-primary", t("page0_Policy", input$lang))
       )
 

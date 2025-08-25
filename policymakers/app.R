@@ -1983,15 +1983,6 @@ outputOptions(output, "soilServiceRankingUI", suspendWhenHidden = FALSE)
     # force plain strings
     policyTok      <- as.character(session_token())
     
-    session$sendCustomMessage(
-      "setSessionToken",
-      list(
-        key   = "policy_sessionToken",
-        value = policyTok
-      )
-    )
-    
-    
     farmerTok      <- as.character(input$storedFarmerSessionToken   %||% "")
     landManagerTok <- as.character(input$storedLandManagerSessionToken %||% "")
     

@@ -46,46 +46,43 @@ common_footer_ui <- function() {
 
 # Common Server Logic Setup
 setup_app_session_and_progress <- function(input, output, session, dbtable_name, appPrefix, total_pages_reactive = NULL) {
-    session_token <- reactiveVal(NULL)
+  session_token <- reactiveVal(NULL)
   currentPage <- reactiveVal(0)
 
-  # Use a reactive expression to determine the session token
-  # This will only be evaluated once input$restoredSessionToken is available
-  # or if it remains NULL after initial checks.
-  determined_session_token <- reactive({
-    # Check if restoredSessionToken is available and not empty
-    if (!is.null(input$restoredSessionToken) && input$restoredSessionToken != "") {
-      message("✅ Session token restored: ", input$restoredSessionToken)
-      return(input$restoredSessionToken)
-    } else {
-      # If not restored, generate a new one.
-      # This will only happen if input$restoredSessionToken is truly null/empty
-      # after the initial connection.
-      new_token <- generateUserID()
-      message("⚠️ No session token restored, generated new token: ", new_token)
-      return(new_token)
+  # Restore session token
+  observeEvent(input$restoredSessionToken, {
+    restored_token <- input$restoredSessionToken
+    if (!is.null(restored_token) && restored_token != "" && restored_token != "[]") {
+      session_token(restored_token)
+      print(paste("Restored session token:", session_token()))
+    }
+  }, priority = 10)
+
+  # Generate new token if needed
+  observe({
+    if (is.null(session_token())) {
+      session_token(generateUserID()) # Assuming generateUserID is in utils.R
+      message("⚠️ session_token was null — generated new token.")
     }
   })
 
-  # Set the session_token reactive value once the determined_session_token is available
-  observeEvent(determined_session_token(), {
-    session_token(determined_session_token())
-  }, once = TRUE)
-
+  # Restore page
   observeEvent(input$restoredPage, {
     restored <- suppressWarnings(as.numeric(input$restoredPage))
     if (!is.na(restored)) currentPage(restored)
   })
 
+  # Page change observer
   observeEvent(currentPage(), {
     lang <- isolate(input$lang %||% "French")
-    session$sendCustomMessage("setAppPrefix", appPrefix)
+    session$sendCustomMessage("setAppPrefix", appPrefix) # Set appPrefix in JS
     session$sendCustomMessage("setSessionToken", list(key = paste0(appPrefix, "_sessionToken"), value = session_token()))
     session$sendCustomMessage("scrollTop", list())
     user_lang <- if (!is.null(input$lang)) input$lang else "French"
-    session$sendCustomMessage("disconnectedAlert", t("disconnected_alert", user_lang))
+    session$sendCustomMessage("disconnectedAlert", t("disconnected_alert", user_lang)) # Assuming t is available
     session$sendCustomMessage('pageChanged', list(page = currentPage(), appPrefix = appPrefix))
 
+    # Logic for redirecting to page 0 if session is invalid
     if (currentPage() != 0 && (is.null(session_token()) || session_token() == "")) {
       currentPage(0)
       session$sendCustomMessage("clearLocalStorageKey", list(key = paste0(appPrefix, "_sessionToken")))
@@ -94,14 +91,16 @@ setup_app_session_and_progress <- function(input, output, session, dbtable_name,
     }
   })
 
+  # Browser back/forward button
   observeEvent(input$browserBackPage, {
     target <- suppressWarnings(as.integer(input$browserBackPage))
     if (!is.na(target)) currentPage(target)
   })
 
+  # Progress bar UI
   output$progressUI <- renderUI({
     p <- currentPage()
-    total_pages <- if (!is.null(total_pages_reactive)) total_pages_reactive() else 18
+    total_pages <- if (!is.null(total_pages_reactive)) total_pages_reactive() else 18 # Default to 18 if not provided
 
     if (p < 1 || p > total_pages) return(NULL)
     percent <- round((p - 1) / (total_pages - 1) * 100)
@@ -114,12 +113,14 @@ setup_app_session_and_progress <- function(input, output, session, dbtable_name,
     )
   })
 
+  # Return reactive values
   list(
     session_token = session_token,
     currentPage = currentPage
   )
 }
 
+# safe_isolate_string function (common to both)
 safe_isolate_string <- function(x) {
   val <- isolate(x)
   if (is.null(val) || is.na(val)) return("")

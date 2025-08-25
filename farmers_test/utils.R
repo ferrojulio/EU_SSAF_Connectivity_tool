@@ -90,6 +90,29 @@ clearLocalStorageInputs <- function(session, input_ids) {
 
 
 
+###knowledge Q####
+exclusiveCheckboxScript <- function(inputId, exclusiveValue) {
+  script <- sprintf('  
+    $(document).on("click", "input[type=checkbox][value=\'%s\']", function() {
+      if ($(this).is(":checked")) {
+        $("input[type=checkbox][name=\'%s\']").each(function(){
+          if ($(this).val() !== "%s") {
+            $(this).prop("checked", false).trigger("change");
+          }
+        });
+      }
+    });
+    
+
+    $(document).on("click", "input[type=checkbox][name=\'%s\']", function() {
+      if ($(this).val() !== "%s" && $(this).is(":checked")) {
+        $("input[type=checkbox][value=\'%s\']").prop("checked", false).trigger("change");
+      }
+    });
+  ', exclusiveValue, inputId, exclusiveValue, inputId, exclusiveValue, exclusiveValue)
+  return(tags$script(HTML(script)))
+}
+
 
 #
 # UTILITY FUNCTIONS ####
@@ -110,7 +133,6 @@ textInput2 <- function(inputId, label, value = "", width = NULL, placeholder = N
     placeholder = placeholder
   )
 }
-
 
 is_valid_text <- function(x, lang = "French", maxlen = 350) {
   if (!is.character(x)) return(FALSE)

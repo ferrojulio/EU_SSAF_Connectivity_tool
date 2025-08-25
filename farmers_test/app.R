@@ -11,9 +11,7 @@ library(htmltools)
 library(RPostgres)
 
 
-library(readxl)
-
-translations <<- read_excel("/srv/shiny-server/farmers/Farmers_translations.xlsx")
+translations <<- readRDS("/srv/shiny-server/farmers/Farmers_translations.rds")
 
 translations <- translations[!is.na(translations$unique_ID), ]
 
@@ -21,7 +19,6 @@ source("/srv/shiny-server/utils.R",local = TRUE)
 
 
 source("/srv/shiny-server/farmers/farmersScoring.R", local = TRUE)
-source("/srv/shiny-server/shared_app_components.R", local = TRUE)
 
 t <- function(key, lang = "French") {
   t_original(key, lang)
@@ -36,7 +33,7 @@ try({
 
 
 
-
+checkTranslationKeys(used_translation_keys, translations)
 
 # ===== DATABASE SETUP =====
 # 
@@ -61,23 +58,6 @@ csv_collapse <- function(x) if (is.null(x)) "" else paste(x, collapse = ";")
 # Create table if missing
 mode <- "online"
 
-ensure_columns_exist <- function(conn, table, data) {
-  existing_cols <- DBI::dbListFields(conn, table)
-  new_cols <- setdiff(names(data), existing_cols)
-  for (col in new_cols) {
-    # Infer type: numeric → DOUBLE PRECISION, else TEXT
-    type <- if (is.numeric(data[[col]])) "DOUBLE PRECISION" else "TEXT"
-    alter_sql <- sprintf(
-      "ALTER TABLE %s ADD COLUMN %s %s",
-      DBI::dbQuoteIdentifier(conn, table),
-      DBI::dbQuoteIdentifier(conn, col),
-      type
-    )
-    DBI::dbExecute(conn, alter_sql)
-    message("➕ Added column ", col, " (", type, ")")
-  }
-}
-
 # SaveData0: raw multilingual inputs
 saveRawInputs <- function(data, table = dbtable) {
   conn <- tryCatch({
@@ -97,8 +77,6 @@ saveRawInputs <- function(data, table = dbtable) {
   
   if (is.null(conn)) return(NULL)
   on.exit(DBI::dbDisconnect(conn))
-  
-  ensure_columns_exist(conn, table, data)
   
   # Ensure UTF-8 encoding for character data before sending to DB
   data[] <- lapply(data, function(x) {
@@ -182,8 +160,6 @@ saveScoringData <- function(data, table = dbtable) {
   
   if (is.null(conn)) return(NULL)
   on.exit(DBI::dbDisconnect(conn))
-  
-  ensure_columns_exist(conn, table, data)
   
   # Ensure UTF-8 encoding for character data
   data_sanitized <- as.data.frame(lapply(data, function(x) {
@@ -303,9 +279,84 @@ ui <- fluidPage(
   tags$head(
     tags$link(rel = "icon", href = "favicon.ico", type = "image/x-icon"),
     tags$link(rel = "stylesheet", href = "app.css"),
-    tags$script(src = "app.js"),
-    tags$script(HTML("window.appPrefix = 'farmers';")),
-    tags$script(src = "exclusive-checkbox.js")
+    tags$script(HTML("
+  Shiny.addCustomMessageHandler('restartApp', function(msg) {
+    localStorage.clear();
+    location.reload();
+  });
+")),
+    tags$script(HTML("
+  // On page load, push initial state
+  $(document).on('shiny:connected', function() {
+  if (window.history && window.history.pushState && 
+      Shiny.shinyapp && Shiny.shinyapp.$inputValues) {
+    const currentPage = Shiny.shinyapp.$inputValues.currentPage || 0;
+    window.history.replaceState({page: currentPage}, '');
+  }
+  });
+
+  // Listen for currentPage changes and update browser history
+  Shiny.addCustomMessageHandler('pushPageState', function(page) {
+    if (window.history && window.history.pushState) {
+      window.history.pushState({page: page}, '');
+    }
+  });
+
+  // Handle browser Back/Forward button
+  window.onpopstate = function(event) {
+    if (event.state && typeof event.state.page !== 'undefined') {
+      Shiny.setInputValue('browserBackPage', event.state.page, {priority: 'event'});
+    }
+  };
+")),
+    tags$script(HTML("
+      function clearLocalStorage() {
+        localStorage.clear();
+        location.reload();
+      }
+
+      function getFromLocalStorage(key) {
+        return localStorage.getItem(key) || '';
+      }
+
+      Shiny.addCustomMessageHandler('disconnectedAlert', function(msg) {
+        $(document).on('shiny:disconnected', function() {
+          alert(msg);
+        });
+      });
+
+      Shiny.addCustomMessageHandler('saveToLocalStore', function(msg) {
+        localStorage.setItem(msg.key, msg.value);
+      });
+
+      Shiny.addCustomMessageHandler('setSessionToken', function(msg) {
+        localStorage.setItem('sessionToken', msg);
+      });
+
+      Shiny.addCustomMessageHandler('updateCurrentPage', function(msg) {
+        localStorage.setItem('currentPage', msg);
+      });
+
+      $(document).on('shiny:connected', function() {
+        var sessionToken = getFromLocalStorage('sessionToken');
+        if (sessionToken) {
+          Shiny.setInputValue('restoredSessionToken', sessionToken);
+        }
+        var savedPage = getFromLocalStorage('currentPage');
+        if (savedPage !== null) {
+          Shiny.setInputValue('restoredPage', savedPage);
+        }
+      });
+
+      Shiny.addCustomMessageHandler('clearCurrentInputs', function(msg) {
+        const keysToRemove = msg.keys || [];
+        keysToRemove.forEach(key => localStorage.removeItem(key));
+      });
+      
+      Shiny.addCustomMessageHandler('scrollTop', function(message) {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+    "))
   ),
   
   # LOGO
@@ -383,29 +434,41 @@ server <- function(input, output, session) {
   
   once <- reactiveVal(TRUE) 
   # Setup session token and page
-  # Use shared session management
-  shared_session_data <- setup_app_session_and_progress(
-    input, output, session, 
-    dbtable_name = "farmer_responses", 
-    appPrefix = "farmers",
-    total_pages_reactive = reactive({ 18 }) # Assuming 18 total pages for farmers app
-  )
-  session_token <- shared_session_data$session_token
-  currentPage <- shared_session_data$currentPage
+  session_token <- reactiveVal(NULL)
   
+  currentPage <- reactiveVal(0)
   
+  observeEvent(input$restoredSessionToken, {
+    lang <- isolate(input$lang %||% "French")
+    if (is.null(input$restoredSessionToken) || input$restoredSessionToken == "") {
+      if (is.null(session_token())) session_token(generateUserID())
+    } else {
+      
+      session_token(input$restoredSessionToken)
+      
+    }
+    print(paste("Session token on page", currentPage(), "=", session_token()))
+  })
+  
+  observe({
+    lang <- isolate(input$lang %||% "French")
+    if (is.null(session_token())) {
+      session_token(generateUserID())
+      message("⚠️ session_token was null — generated new token.")
+    }
+  })
   
   
   observeEvent(input$restoredPage, {
-    lang <- input$lang %||% "French"
+    lang <- isolate(input$lang %||% "French")
     restoredPage <- suppressWarnings(as.numeric(input$restoredPage))
     if (!is.na(restoredPage)) currentPage(restoredPage)
   })
   #### observeEvent(currentPage()####
   observeEvent(currentPage(), {
-    lang <- input$lang %||% "French"
+    lang <- isolate(input$lang %||% "French")
     session$sendCustomMessage("updateCurrentPage", currentPage())
-    
+    session$sendCustomMessage("setSessionToken", session_token())
     session$sendCustomMessage("scrollTop", list())
     # Send default if input$lang not yet set
     user_lang <- if (!is.null(input$lang)) input$lang else "French"
@@ -598,7 +661,7 @@ server <- function(input, output, session) {
     
     #Page 0: Language and Consent #### 
     if (p == 0) {
-      lang <- input$lang %||% "French"
+      lang <- isolate(input$lang %||% "French")
       
       return(
         fluidPage(
@@ -630,7 +693,7 @@ server <- function(input, output, session) {
       ## PAGE 1: PRESENTATION #############################
     } else if(p == 1){
       
-      lang <- input$lang %||% "French"
+      lang <- isolate(input$lang %||% "French")
       
       fluidPage(
         h3(t("PRESENTATION_header", lang)),
@@ -666,7 +729,6 @@ server <- function(input, output, session) {
                     value = safe_isolate_string(input$other_perceivedThreats %||% ""))
         ),
         
-        tags$script(HTML(sprintf("initExclusiveGroup('%s', %s);", htmltools::htmlEscape("perceivedThreats"), jsonlite::toJSON("None of the above", auto_unbox = TRUE)))),
         actionButton("PRESENTATION_Back", t("nav_back", lang)),
         actionButton("PRESENTATION_Next", t("nav_next", lang))
       )
@@ -676,7 +738,7 @@ server <- function(input, output, session) {
       tagList(   
         h3(t("Supply_header", input$lang)),
         
-        tags$script(HTML(sprintf("initExclusiveGroup('%s', %s);", htmltools::htmlEscape("supply_newconcepts"), jsonlite::toJSON("supply_newconcepts_5", auto_unbox = TRUE)))),
+        exclusiveCheckboxScript("supply_newconcepts", "supply_newconcepts_5"),
         uiOutput("supply_newconcepts_1"),
         
         radioButtons("supply_approach", 
@@ -718,7 +780,7 @@ server <- function(input, output, session) {
         h3(t("food_header", input$lang)),
         
         # Disable others if "I'm familiar with all" is selected
-        tags$script(HTML(sprintf("initExclusiveGroup('%s', %s);", htmltools::htmlEscape("food_newconcepts"), jsonlite::toJSON("food_newconcepts_5", auto_unbox = TRUE)))),
+        exclusiveCheckboxScript("food_newconcepts", "food_newconcepts_5"),
         
         
         
@@ -761,7 +823,7 @@ server <- function(input, output, session) {
       fluidPage(
         h3(t("econ_header", input$lang)),
         
-        tags$script(HTML(sprintf("initExclusiveGroup('%s', %s);", htmltools::htmlEscape("econ_newconcepts"), jsonlite::toJSON("econ_newconcepts_5", auto_unbox = TRUE)))),
+        exclusiveCheckboxScript("econ_newconcepts", "econ_newconcepts_5"),
         
         uiOutput("econ_newconcepts_1"),
         
@@ -804,7 +866,7 @@ server <- function(input, output, session) {
       fluidPage(
         h3(t("intSec_header", input$lang)),
         
-        tags$script(HTML(sprintf("initExclusiveGroup('%s', %s);", htmltools::htmlEscape("intSec_newconcepts"), jsonlite::toJSON(c("intSec_newconcept_5"), auto_unbox = TRUE)))),
+        exclusiveCheckboxScript("intSec_newconcepts", "intSec_newconcept_5"),
         
         uiOutput("intSec_newconcepts_1"),
         
@@ -860,7 +922,7 @@ server <- function(input, output, session) {
       fluidPage(
         h3(t("defense_header", input$lang)),
         
-        tags$script(HTML(sprintf("initExclusiveGroup('%s', %s);", htmltools::htmlEscape("defense_newconcepts"), jsonlite::toJSON("defense_newconcepts_5", auto_unbox = TRUE)))),
+        exclusiveCheckboxScript("defense_newconcepts", "defense_newconcepts_5"),
         
         uiOutput("defense_newconcepts_1"),
         
@@ -999,7 +1061,7 @@ server <- function(input, output, session) {
           )
         },
         
-        tags$script(HTML(sprintf("initExclusiveGroup('%s', %s);", htmltools::htmlEscape("E_K"), jsonlite::toJSON("E_K_5", auto_unbox = TRUE)))),
+        exclusiveCheckboxScript("E_K", "E_K_5"),
         uiOutput("E_K_1"),
         radioButtons(
           "E_approach",
@@ -1059,7 +1121,7 @@ server <- function(input, output, session) {
         },
         
         
-        tags$script(HTML(sprintf("initExclusiveGroup('%s', %s);", htmltools::htmlEscape("A_K"), jsonlite::toJSON("A_K_5", auto_unbox = TRUE)))),
+        exclusiveCheckboxScript("A_K", "A_K_5"),
         uiOutput("A_K_1"),
         
         radioButtons("A_approach",
@@ -1111,7 +1173,7 @@ server <- function(input, output, session) {
         },
         
         
-        tags$script(HTML(sprintf("initExclusiveGroup('%s', %s);", htmltools::htmlEscape("SD_K"), jsonlite::toJSON("SD_K_A5", auto_unbox = TRUE)))),
+        exclusiveCheckboxScript("SD_K", "SD_K_A5"),
         
         uiOutput("SD_K_1"),
         
@@ -1170,7 +1232,7 @@ server <- function(input, output, session) {
           )
         },
         
-        tags$script(HTML(sprintf("initExclusiveGroup('%s', %s);", htmltools::htmlEscape("S_K"), jsonlite::toJSON("S_K_5", auto_unbox = TRUE)))),
+        exclusiveCheckboxScript("S_K", "S_K_5"),
         uiOutput("S_K_1"),
         
         radioButtons("S_approach",
@@ -1230,7 +1292,7 @@ server <- function(input, output, session) {
         },
         
         
-        tags$script(HTML(sprintf("initExclusiveGroup('%s', %s);", htmltools::htmlEscape("HL_K"), jsonlite::toJSON("HL_K_5", auto_unbox = TRUE)))),
+        exclusiveCheckboxScript("HL_K", "HL_K_5"),
         uiOutput("HL_K_1"),
         
         radioButtons("HL_approach",
@@ -1297,7 +1359,7 @@ server <- function(input, output, session) {
           )
         },
         
-        tags$script(HTML(sprintf("initExclusiveGroup('%s', %s);", htmltools::htmlEscape("NM_K"), jsonlite::toJSON("NM_K_5", auto_unbox = TRUE)))),
+        exclusiveCheckboxScript("NM_K", "NM_K_5"),
         uiOutput("NM_K_1"),
         
         radioButtons("NM_approach",
@@ -1358,7 +1420,7 @@ server <- function(input, output, session) {
         },
         
         
-        tags$script(HTML(sprintf("initExclusiveGroup('%s', %s);", htmltools::htmlEscape("SW_K"), jsonlite::toJSON("SW_K_5", auto_unbox = TRUE)))),
+        exclusiveCheckboxScript("SW_K", "SW_K_5"),
         uiOutput("SW_K_1"),
         
         radioButtons("SW_approach",
@@ -1418,7 +1480,7 @@ server <- function(input, output, session) {
           )
         },
         
-        tags$script(HTML(sprintf("initExclusiveGroup('%s', %s);", htmltools::htmlEscape("DC_K"), jsonlite::toJSON("DC_K_5", auto_unbox = TRUE)))),
+        exclusiveCheckboxScript("DC_K", "DC_K_5"),
         uiOutput("DC_K_1"),
         
         radioButtons("DC_approach",
@@ -1997,7 +2059,7 @@ server <- function(input, output, session) {
   
   
   observeEvent(input$btnStart, {
-    lang <- input$lang %||% "French"
+    lang <- isolate(input$lang %||% "French")
     req(input$consent)
     
     data_row <- data.frame(
@@ -2018,7 +2080,7 @@ server <- function(input, output, session) {
   
   
   observeEvent(input$PRESENTATION_Next, {
-    lang <- input$lang %||% "French"
+    lang <- isolate(input$lang %||% "French")
     
     # Validate token
     token <- session_token()
@@ -2072,12 +2134,12 @@ server <- function(input, output, session) {
   ###page Supply #####
   
   observeEvent(input$Supply_Back, {
-    lang <- input$lang %||% "French"
+    lang <- isolate(input$lang %||% "French")
     currentPage(1)
   })
   
   observeEvent(input$Supply_Next, {
-    lang <- input$lang %||% "French"
+    lang <- isolate(input$lang %||% "French")
     
     # Optional validation: make sure something is selected (or warn)
     if (is.null(input$supply_newconcepts) || length(input$supply_newconcepts) == 0) {
@@ -2116,12 +2178,12 @@ server <- function(input, output, session) {
   
   ###page food #####
   observeEvent(input$food_Back, {
-    lang <- input$lang %||% "French"
+    lang <- isolate(input$lang %||% "French")
     currentPage(2)
   })
   
   observeEvent(input$food_Next, {
-    lang <- input$lang %||% "French"
+    lang <- isolate(input$lang %||% "French")
     
     if (is.null(input$food_newconcepts) || length(input$food_newconcepts) == 0) {
       showNotification(t("missing_newconcepts", lang), type = "error")
@@ -2159,7 +2221,7 @@ server <- function(input, output, session) {
   
   ###page econ #####
   observeEvent(input$econ_Next, {
-    lang <- input$lang %||% "French"
+    lang <- isolate(input$lang %||% "French")
     
     if (is.null(input$econ_newconcepts) || length(input$econ_newconcepts) == 0) {
       showNotification(t("missing_newconcepts", lang), type = "error")
@@ -2195,13 +2257,13 @@ server <- function(input, output, session) {
   })
   
   observeEvent(input$econ_Back, {
-    lang <- input$lang %||% "French"
+    lang <- isolate(input$lang %||% "French")
     currentPage(3)
   })
   
   ###Page intSec ####
   observeEvent(input$intSec_Next, {
-    lang <- input$lang %||% "French"
+    lang <- isolate(input$lang %||% "French")
     
     if (is.null(input$intSec_newconcepts) || length(input$intSec_newconcepts) == 0) {
       showNotification(t("missing_newconcepts", lang), type = "error")
@@ -2245,14 +2307,14 @@ server <- function(input, output, session) {
   })
   
   observeEvent(input$intSec_Back, {
-    lang <- input$lang %||% "French"
+    lang <- isolate(input$lang %||% "French")
     currentPage(4)
   })
   
   
   ### defense ####
   observeEvent(input$defense_Next, {
-    lang <- input$lang %||% "French"
+    lang <- isolate(input$lang %||% "French")
     
     if (is.null(input$defense_newconcepts) || length(input$defense_newconcepts) == 0) {
       showNotification(t("missing_newconcepts", lang), type = "error")
@@ -2295,7 +2357,7 @@ server <- function(input, output, session) {
   })
   
   observeEvent(input$defense_Back, {
-    lang <- input$lang %||% "French"
+    lang <- isolate(input$lang %||% "French")
     currentPage(5)
   })
   
@@ -2309,12 +2371,12 @@ server <- function(input, output, session) {
   
   
   observeEvent(input$map_Back, {
-    lang <- input$lang %||% "French"
+    lang <- isolate(input$lang %||% "French")
     currentPage(6)
   })
   
   observeEvent(input$map_Next, {
-    lang <- input$lang %||% "French"
+    lang <- isolate(input$lang %||% "French")
     
     if (is.null(input$country) || input$country == "") {
       showNotification(t("missing_country", lang), type = "error")
@@ -2361,7 +2423,7 @@ server <- function(input, output, session) {
   
   ### Page Erosion ####
   observeEvent(input$erosion_Next, {
-    lang <- input$lang %||% "French"
+    lang <- isolate(input$lang %||% "French")
     
     if (is.null(input$E_K) || length(input$E_K) == 0) {
       showNotification(t("missing_newconcepts", lang), type = "error")
@@ -2396,13 +2458,13 @@ server <- function(input, output, session) {
   })
   
   observeEvent(input$erosion_Back, {
-    lang <- input$lang %||% "French"
+    lang <- isolate(input$lang %||% "French")
     currentPage(7)
   })
   
   ### Page Acidification ####
   observeEvent(input$acid_Next, {
-    lang <- input$lang %||% "French"
+    lang <- isolate(input$lang %||% "French")
     
     if (is.null(input$A_K) || length(input$A_K) == 0) {
       showNotification(t("missing_newconcepts", lang), type = "error")
@@ -2438,7 +2500,7 @@ server <- function(input, output, session) {
   })
   
   observeEvent(input$acid_Back, {
-    lang <- input$lang %||% "French"
+    lang <- isolate(input$lang %||% "French")
     currentPage(8)
   })
   
@@ -2446,12 +2508,12 @@ server <- function(input, output, session) {
   ### Page Soil Structure ####
   # Navigation and validation
   observeEvent(input$sd_Back, {
-    lang <- input$lang %||% "French"
+    lang <- isolate(input$lang %||% "French")
     currentPage(9)
   })
   
   observeEvent(input$sd_Next, {
-    lang <- input$lang %||% "French"
+    lang <- isolate(input$lang %||% "French")
     if (is.null(input$SD_K) || length(input$SD_K) == 0) {
       showNotification(t("missing_newconcepts", lang), type = "error")
       return()
@@ -2486,7 +2548,7 @@ server <- function(input, output, session) {
   ###Sal inisation Page ####
   #
   observeEvent(input$sal_Next, {
-    lang <- input$lang %||% "French"
+    lang <- isolate(input$lang %||% "French")
     
     if (is.null(input$S_K) || length(input$S_K) == 0) {
       showNotification(t("missing_newconcepts", lang), type = "error")
@@ -2518,14 +2580,14 @@ server <- function(input, output, session) {
   
   
   observeEvent(input$sal_Back, {
-    lang <- input$lang %||% "French"
+    lang <- isolate(input$lang %||% "French")
     currentPage(10)
   })
   
   
   ### Biodiversity Page ####
   observeEvent(input$bio_Next, {
-    lang <- input$lang %||% "French"
+    lang <- isolate(input$lang %||% "French")
     
     if (is.null(input$HL_K) || length(input$HL_K) == 0) {
       showNotification(t("missing_newconcepts", lang), type = "error")
@@ -2561,7 +2623,7 @@ server <- function(input, output, session) {
   })
   
   observeEvent(input$bio_Back, {
-    lang <- input$lang %||% "French"
+    lang <- isolate(input$lang %||% "French")
     currentPage(11)
   })
   
@@ -2569,7 +2631,7 @@ server <- function(input, output, session) {
   
   ### Fert Page ####
   observeEvent(input$nm_Next, {
-    lang <- input$lang %||% "French"
+    lang <- isolate(input$lang %||% "French")
     
     if (is.null(input$NM_K) || length(input$NM_K) == 0) {
       showNotification(t("missing_newconcepts", lang), type = "error")
@@ -2607,14 +2669,14 @@ server <- function(input, output, session) {
   
   
   observeEvent(input$nm_Back, {
-    lang <- input$lang %||% "French"
+    lang <- isolate(input$lang %||% "French")
     currentPage(12)
   })
   
   ### Water Management Page ####
   
   observeEvent(input$sw_Next, {
-    lang <- input$lang %||% "French"
+    lang <- isolate(input$lang %||% "French")
     
     if (is.null(input$SW_K) || length(input$SW_K) == 0) {
       showNotification(t("missing_newconcepts", lang), type = "error")
@@ -2650,7 +2712,7 @@ server <- function(input, output, session) {
   
   ### Carbon Page ####
   observeEvent(input$dc_Next, {
-    lang <- input$lang %||% "French"
+    lang <- isolate(input$lang %||% "French")
     if (is.null(input$DC_K) || length(input$DC_K) == 0) {
       showNotification(t("missing_newconcepts", lang), type = "error")
       return()
@@ -2683,7 +2745,7 @@ server <- function(input, output, session) {
   
   
   observeEvent(input$dc_Back, {
-    lang <- input$lang %||% "French"
+    lang <- isolate(input$lang %||% "French")
     currentPage(14)
   })
   
@@ -2692,7 +2754,7 @@ server <- function(input, output, session) {
   ### Threats Page ####
   
   observeEvent(input$threats_Next, {
-    lang <- input$lang %||% "French"
+    lang <- isolate(input$lang %||% "French")
     safe <- function(x) if (is.null(x)) NA else x
     
     saveRawInputs(data.frame(
@@ -2718,7 +2780,7 @@ server <- function(input, output, session) {
   })
   
   observeEvent(input$threats_Back, {
-    lang <- input$lang %||% "French"
+    lang <- isolate(input$lang %||% "French")
     currentPage(15)
   })
   
@@ -2728,12 +2790,12 @@ server <- function(input, output, session) {
   
 
   observeEvent(input$final_Back, {
-    lang <- input$lang %||% "French"
+    lang <- isolate(input$lang %||% "French")
     currentPage(16)
   })
   
   observeEvent(input$submitAll, {
-    lang <- input$lang %||% "French"
+    lang <- isolate(input$lang %||% "French")
     
     if (input$receive_results == "yes" && (is.null(input$contact_email) || input$contact_email == "")) {
       showNotification(t("missing_email", lang), type = "error")
