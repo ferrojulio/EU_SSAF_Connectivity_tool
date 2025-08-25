@@ -12,3 +12,4 @@ tmp_git/
 .Renviron
 tests/
 GEMINI.mdfarmers_test/
+*debug_sql_log.txt

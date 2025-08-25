@@ -363,6 +363,8 @@ ui <- fluidPage(
 
 # ===== SERVER =====
 server <- function(input, output, session) {
+  try(cat(paste(Sys.time(), "BOOT farmers"), file = "/srv/shiny-server/farmers/debug_sql_log.txt", append = TRUE), silent = TRUE)
+
 
   commune_centroids_reactive <- reactive({
     req(input$country)
@@ -1997,21 +1999,18 @@ server <- function(input, output, session) {
   
   
   observeEvent(input$btnStart, {
-    lang <- input$lang %||% "French"
-    req(input$consent)
-    
+    req(isTRUE(input$consent))           # must tick consent
+    req(nzchar(session_token()))         # avoid race: only proceed once token exists
+
     data_row <- data.frame(
       session_token = session_token(),
-      timestamp = format(Sys.time(), tz = "UTC", usetz = FALSE),
-      language = input$lang,
+      timestamp     = format(as.POSIXct(Sys.time(), tz = "UTC"), "%Y-%m-%dT%H:%M:%SZ"),
+      language      = input$lang %||% "French",
       stringsAsFactors = FALSE
     )
-    
-    
+
     saveRawInputs(data_row)
-    
-    
-    currentPage(1)
+    currentPage(1L)
   })
   
   ###Page PRESENTATION ####
