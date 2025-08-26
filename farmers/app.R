@@ -724,7 +724,7 @@ server <- function(input, output, session) {
         
         
         
-        uiOutput("food_newconcepts_1"),
+        
         
         radioButtons("food_approach",
                      t("food_approach_Q", input$lang),
@@ -807,8 +807,15 @@ server <- function(input, output, session) {
         h3(t("intSec_header", input$lang)),
         
         tags$script(HTML(sprintf("initExclusiveGroup('%s', %s);", htmltools::htmlEscape("intSec_newconcepts"), jsonlite::toJSON(c("intSec_newconcept_5"), auto_unbox = TRUE)))),
+
+        checkboxGroupInput(
+          "intSec_newconcepts",
+          label = t("intSec_newconcepts_Q", input$lang),
+          choices = character(0),
+          selected = character(0)
+        ),
         
-        uiOutput("intSec_newconcepts_1"),
+        
         
         radioButtons("intSec_approach",
                      t("intSec_approach_Q", input$lang),
@@ -1816,18 +1823,7 @@ server <- function(input, output, session) {
     )
   })
   
-  output$intSec_newconcepts_1 <- renderUI({
-    renderTranslatedCheckbox(
-      id = "intSec_newconcepts",
-      label_key = "intSec_newconcepts_Q",
-      value_choices = paste0("intSec_newconcepts_", 1:5),
-      label_keys = paste0("intSec_newconcepts_A", 1:5),
-      lang = input$lang,
-      current_input = input$intSec_newconcepts,
-      session = session,
-      t_func = t
-    )
-  })
+  
   
   output$defense_newconcepts_1 <- renderUI({
     renderTranslatedCheckbox(
@@ -1839,6 +1835,34 @@ server <- function(input, output, session) {
       current_input = input$defense_newconcepts,
       session = session,
       t_func = t
+    )
+  })
+
+  observe({
+    lang <- input$lang %||% "French"
+    
+    # Get translated label
+    label <- t("intSec_newconcepts_Q", lang)
+    
+    # Get translated choices
+    value_choices <- paste0("intSec_newconcepts_", 1:5)
+    label_keys <- paste0("intSec_newconcepts_A", 1:5)
+    choices <- setNames(
+      value_choices,
+      vapply(label_keys, function(k) {
+        t(k, lang)
+      }, character(1))
+    )
+    
+    # Get current selected values
+    selected_values <- input$intSec_newconcepts %||% character(0)
+    
+    updateCheckboxGroupInput(
+      session,
+      "intSec_newconcepts",
+      label = label,
+      choices = choices,
+      selected = selected_values
     )
   })
   

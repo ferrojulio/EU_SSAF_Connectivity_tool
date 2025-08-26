@@ -7,7 +7,9 @@ Shiny.addCustomMessageHandler('setAppPrefix', msg => {
 
 // ===== session storage helpers =====
 function clearLocalStorage() {
-  localStorage.clear();
+  const currentAppPrefix = window.appPrefix || 'default';
+  localStorage.removeItem(currentAppPrefix + '_sessionToken');
+  localStorage.removeItem(currentAppPrefix + '_currentPage');
   location.reload();
 }
 

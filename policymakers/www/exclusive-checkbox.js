@@ -1,41 +1,36 @@
-// Exclusive checkbox groups (supports Shiny namespaces like xyz-E_K[])
+// Exclusive checkbox groups – scoped to the input container id, no synthetic events
 (function () {
-  window.initExclusiveGroup = function (groupName, exclusiveValues) {
-    if (!Array.isArray(exclusiveValues)) exclusiveValues = [exclusiveValues];
+  window.initExclusiveGroup = function (groupId, exclusiveValues) {
+    const root = document.getElementById(groupId);
+    if (!root) return;
 
-    // Match name="group" and name="group[]", even if namespaced (…-group / …-group[])
-    const sel = `input[type="checkbox"][name$="${groupName}"], input[type="checkbox"][name$="${groupName}[]"]`;
-
-    // Remove any previous handler for a clean re‑init
-    if (window.__exclHandlers?.[groupName]) {
-      document.removeEventListener("change", window.__exclHandlers[groupName], true);
-    }
+    const excl = new Set([].concat(exclusiveValues || []).filter(Boolean));
     window.__exclHandlers = window.__exclHandlers || {};
+    if (window.__exclHandlers[groupId]) {
+      root.removeEventListener("change", window.__exclHandlers[groupId], true);
+    }
 
     let busy = false;
     const handler = function (e) {
-      if (busy || !e.target.matches(sel)) return;
+      if (busy || e.target.type !== "checkbox" || !root.contains(e.target)) return;
       busy = true;
 
-      const boxes = Array.from(document.querySelectorAll(sel));
-      const isExclusive = exclusiveValues.includes(e.target.value);
+      const boxes = Array.from(root.querySelectorAll('input[type="checkbox"]'));
+      const isExclusive = excl.has(e.target.value);
 
       if (e.target.checked) {
         if (isExclusive) {
-          // exclusive checked → uncheck all others
           boxes.forEach(b => { if (b !== e.target && b.checked) b.checked = false; });
         } else {
-          // non‑exclusive checked → uncheck exclusives
-          boxes.forEach(b => { if (b !== e.target && exclusiveValues.includes(b.value) && b.checked) b.checked = false; });
-        }
+          boxes.forEach(b => { if (b !== e.target && excl.has(b.value) && b.checked) b.checked = false; });
+        }s
       }
 
-      // Notify input bindings once (avoid recursive loops/flicker)
-      e.target.dispatchEvent(new Event("change", { bubbles: true }));
+      // no synthetic dispatch; Shiny already got the user's original change event
       busy = false;
     };
 
-    document.addEventListener("change", handler, true);
-    window.__exclHandlers[groupName] = handler;
+    root.addEventListener("change", handler, true);
+    window.__exclHandlers[groupId] = handler;
   };
 })();
