@@ -1,15 +1,44 @@
-*.sqlite
-event_log.txt
-.Rproj.user
-*.png
-renv/
-log.txt
-farmers.log
-tmp_git/
+# R temporary files
 .RData
 .Rhistory
-.Rprofile
+.Rproj.user/
 .Renviron
-tests/
-GEMINI.mdfarmers_test/
-*debug_sql_log.txt
+
+# Shiny temporary files
+*.log
+*.log.*
+rsconnect/
+
+# Databases
+*.sqlite
+*.sqlite3
+
+# renv
+renv/library/
+renv/staging/
+renv/python/
+
+# Backups
+*.bak
+*.swp
+*~
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Test directories (not tracked by git)
+farmers_test/
+policymakers_test/
+
+# Logs
+log.txt
+/var/log/
+
+# Audit directory
+audit/
+securite-des-sols_backup_20260111.tar.gz
+securite-des-sols_system_state_20260111.tar.gz
+
+# Other
+.Rprofile

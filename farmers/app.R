@@ -721,6 +721,7 @@ server <- function(input, output, session) {
         
         # Disable others if "I'm familiar with all" is selected
         tags$script(HTML(sprintf("initExclusiveGroup('%s', %s);", htmltools::htmlEscape("food_newconcepts"), jsonlite::toJSON("food_newconcepts_5", auto_unbox = TRUE)))),
+        uiOutput("food_newconcepts_1"),
         
         
         
@@ -1843,6 +1844,7 @@ server <- function(input, output, session) {
     
     # Get translated label
     label <- t("intSec_newconcepts_Q", lang)
+    print(paste0("DEBUG: intSec_newconcepts label: ", label))
     
     # Get translated choices
     value_choices <- paste0("intSec_newconcepts_", 1:5)
@@ -1853,9 +1855,12 @@ server <- function(input, output, session) {
         t(k, lang)
       }, character(1))
     )
+    print("DEBUG: intSec_newconcepts choices:")
+    print(choices)
     
     # Get current selected values
     selected_values <- input$intSec_newconcepts %||% character(0)
+    print(paste0("DEBUG: intSec_newconcepts selected_values: ", paste(selected_values, collapse = ", ")))
     
     updateCheckboxGroupInput(
       session,
